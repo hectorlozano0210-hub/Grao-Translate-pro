@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: graotranslate
+    env: docker
+    plan: free
+    dockerfilePath: Dockerfile
+    buildCommand: npm ci
+    startCommand: tsx server/server.ts
