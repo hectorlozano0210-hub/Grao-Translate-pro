@@ -24,6 +24,9 @@ RUN npm i -g tsx
 # Copy app sources
 COPY . .
 
+# Build the Vite React frontend
+RUN npm run build
+
 EXPOSE 3000
 
 # Set NODE_ENV to production at runtime
