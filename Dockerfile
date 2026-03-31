@@ -24,6 +24,10 @@ RUN npm i -g tsx
 # Copy app sources
 COPY . .
 
+# Setup Build environment variables injected via Render dashboard
+ARG GEMINI_API_KEY
+ENV GEMINI_API_KEY=$GEMINI_API_KEY
+
 # Build the Vite React frontend
 RUN npm run build
 
