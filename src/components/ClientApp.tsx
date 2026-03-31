@@ -59,29 +59,62 @@ export default function ClientApp() {
     registerDevice();
   }, []);
 
-  useEffect(() => {
-
-  const storedId =
-    localStorage.getItem("grao_device_id") ||
-    `DEV-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-
-  localStorage.setItem("grao_device_id", storedId);
-  setDeviceId(storedId);
-
-  fetch("/api/client/register-id", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deviceId: storedId })
-  });
-
-
-  // socket will be created after successful login (handshake auth)
-
-  return () => {
-    socketRef.current?.disconnect();
+  const setupSocketListeners = (socket: any) => {
+    socket.on("balance_update", (d: any) => setRemainingMinutes(d.remaining_minutes));
+    socket.on("warning", (d: any) => setWarning(d.message));
+    socket.on("call_ended", (d: any) => {
+      setIsCallActive(false);
+      if (d.reason === "out_of_balance" || d.reason === "no_balance") setError("Tu saldo se ha agotado o llamada terminada.");
+      fetchHistory();
+    });
   };
 
-}, []);
+  useEffect(() => {
+    const initApp = async () => {
+      const adminToken = sessionStorage.getItem("adminToken");
+      if (adminToken) {
+        try {
+          const res = await fetch("/api/admin/setup-master", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${adminToken}`
+            }
+          });
+          const adminData = await res.json();
+          if (adminData.success) {
+            setDeviceId(adminData.deviceId);
+            setAuthKey(adminData.authKey);
+            setIsAuthenticated(true);
+            setClientName("Administrador Master");
+            setRemainingMinutes(10);
+            
+            socketRef.current = io(window.location.origin, { 
+              auth: { deviceId: adminData.deviceId, authKey: adminData.authKey } 
+            });
+            setupSocketListeners(socketRef.current);
+            return;
+          }
+        } catch(e) { console.error("Admin bypass failed", e); }
+      }
+
+      const storedId = localStorage.getItem("grao_device_id") || `DEV-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      localStorage.setItem("grao_device_id", storedId);
+      setDeviceId(storedId);
+
+      fetch("/api/client/register-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId: storedId })
+      });
+    };
+    
+    initApp();
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, []);
  
    
   useEffect(() => {
@@ -125,18 +158,34 @@ export default function ClientApp() {
   }, [messages]);
 
   const fetchHistory = async () => {
+    const id = deviceId || localStorage.getItem("grao_device_id");
+    if (!id) return;
 
-  const id = localStorage.getItem("grao_device_id");
-  if (!id) return;
+    try {
+      const res = await fetch(`/api/client/calls/${id}`);
+      setCallHistory(await res.json());
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-  try {
-    const res = await fetch(`/api/client/calls/${id}`);
-    setCallHistory(await res.json());
-  } catch (err) {
-    console.error(err);
-  }
-
-};
+  const reloadAdminMinutes = async () => {
+    const adminToken = sessionStorage.getItem("adminToken");
+    if (!adminToken) return;
+    try {
+      const res = await fetch("/api/admin/setup-master", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${adminToken}`
+        }
+      });
+      if (res.ok) {
+        setRemainingMinutes(10);
+        setError(null);
+      }
+    } catch (e) { console.error(e); }
+  };
 
   const handleLogin = async () => {
     try {
@@ -154,14 +203,7 @@ export default function ClientApp() {
         setError(null);
         // create authenticated socket AFTER login
         socketRef.current = io(window.location.origin, { auth: { deviceId, authKey } });
-
-        socketRef.current.on("balance_update", (d: any) => setRemainingMinutes(d.remaining_minutes));
-        socketRef.current.on("warning", (d: any) => setWarning(d.message));
-        socketRef.current.on("call_ended", (d: any) => {
-          setIsCallActive(false);
-          if (d.reason === "out_of_balance") setError("Tu saldo se ha agotado. Por favor recarga.");
-          fetchHistory();
-        });
+        setupSocketListeners(socketRef.current);
       } else {
         setError("Clave de autenticación inválida.");
       }
@@ -285,14 +327,24 @@ export default function ClientApp() {
             </div>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-[9px] text-zinc-500 uppercase font-bold mb-0.5">Saldo</p>
-          <p className={cn(
-            "text-sm font-mono font-bold",
-            remainingMinutes < 5 ? "text-amber-500" : "text-emerald-500"
-          )}>
-            {Math.floor(remainingMinutes)}:{Math.floor((remainingMinutes % 1) * 60).toString().padStart(2, '0')}m
-          </p>
+        <div className="flex items-center gap-4">
+          {deviceId === 'ADMIN-MASTER-DEVICE' && (
+            <button 
+              onClick={reloadAdminMinutes}
+              className="px-3 py-1.5 bg-amber-500/20 text-amber-500 border border-amber-500/50 hover:bg-amber-500/30 text-[10px] uppercase font-bold rounded-lg transition-colors flex items-center gap-1 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+            >
+               +10 Min
+            </button>
+          )}
+          <div className="text-right">
+            <p className="text-[9px] text-zinc-500 uppercase font-bold mb-0.5">Saldo</p>
+            <p className={cn(
+              "text-sm font-mono font-bold",
+              remainingMinutes < 5 ? "text-amber-500" : "text-emerald-500"
+            )}>
+              {Math.floor(remainingMinutes)}:{Math.floor((remainingMinutes % 1) * 60).toString().padStart(2, '0')}m
+            </p>
+          </div>
         </div>
       </header>
 

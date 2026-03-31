@@ -145,7 +145,7 @@ SELECT SUM(minutes_used) as totalMinutes
 FROM usage_logs
 `);
 
-const totalMinutes = usage[0].totalMinutes || 0;
+const totalMinutes = usage[0]?.totalMinutes || 0;
 
 const googleCost = totalMinutes * 0.024;
 
@@ -162,7 +162,7 @@ totalEarnings: totalMinutes * 0.05,
 totalMinutesUsed: totalMinutes,
 googleCost,
 profitMargin,
-activeDevices: devices[0].activeDevices
+activeDevices: devices[0]?.activeDevices || 0
 });
 
 } catch (error) {
@@ -434,31 +434,40 @@ app.post('/api/client/auth', authLimiter, async (req, res) => {
   }
 });
 
-/* ================================
-ACTIVAR DISPOSITIVO (ADMIN)
-================================ */
-
 app.post("/api/admin/activate-device", verifyAdmin, async(req,res)=>{
 
-const {deviceId,minutes,days} = req.body;
+const {deviceId, minutes, days, clientName, planType, amount} = req.body;
 
 try{
 
 const expiresAt = new Date();
 expiresAt.setDate(expiresAt.getDate()+days);
 
+const newAuthKey = "GRAO-" + crypto.randomBytes(4).toString("hex").toUpperCase();
+
 await pool.query(`
 UPDATE devices
 SET status='active',
-total_minutes=?,
-remaining_minutes=?,
+auth_key=?,
+client_name=?,
+plan_type=?,
+total_minutes=total_minutes+?,
+remaining_minutes=remaining_minutes+?,
 expires_at=?
 WHERE device_id=?
 `,
-[minutes,minutes,expiresAt,deviceId]);
+[newAuthKey, clientName || 'Sin Nombre', planType || 'Mensual', minutes, minutes, expiresAt, deviceId]);
+
+if (amount > 0) {
+  await pool.query(`
+  INSERT INTO payments (device_id, client_name, amount, minutes_added, payment_method, created_at)
+  VALUES (?, ?, ?, ?, 'Manual', NOW())
+  `, [deviceId, clientName || 'Sin Nombre', amount, minutes]);
+}
 
 res.json({
-success:true
+success:true,
+authKey: newAuthKey
 });
 
 }catch(err){
@@ -468,6 +477,28 @@ res.status(500).json({error:"Activation failed"});
 
 }
 
+});
+
+/* ================================
+ADMIN SETUP MASTER DEVICE
+================================ */
+app.post("/api/admin/setup-master", verifyAdmin, async(req,res)=>{
+  try {
+    const deviceId = "ADMIN-MASTER-DEVICE";
+    const authKey = "ADMIN-SECRET";
+    const [rows] = await pool.query("SELECT * FROM devices WHERE device_id = ?", [deviceId]) as any;
+    
+    if (rows.length === 0) {
+      await pool.query(`INSERT INTO devices (device_id, auth_key, status, total_minutes, remaining_minutes, client_name, plan_type) 
+      VALUES (?, ?, 'active', 10, 10, 'Admin Master', 'Ilimitado')`, [deviceId, authKey]);
+    } else {
+      await pool.query(`UPDATE devices SET remaining_minutes = 10, total_minutes = total_minutes + 10 WHERE device_id = ?`, [deviceId]);
+    }
+    res.json({ success: true, deviceId, authKey });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Master setup failed" });
+  }
 });
 
 /* ================================
@@ -481,6 +512,7 @@ try{
 const [devices] = await pool.query(`
 SELECT
 device_id,
+auth_key,
 status,
 total_minutes,
 remaining_minutes,

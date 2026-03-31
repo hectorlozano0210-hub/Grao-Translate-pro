@@ -63,29 +63,10 @@ export default function AdminDashboard() {
     }
   };
 
-  async function activateDevice(deviceId: string) {
-
-  const minutes = prompt("Minutos para esta licencia:");
-  const days = prompt("Duración en días:");
-
-  if (!minutes || !days) return;
-
-  await fetch("/api/admin/activate-device", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders()
-    },
-    body: JSON.stringify({
-      deviceId,
-      minutes: Number(minutes),
-      days: Number(days)
-    })
-  });
-
-  alert("Licencia activada");
-
-}
+  const openActivateModal = (deviceId: string) => {
+    setSelectedDevice(deviceId);
+    setShowActivateModal(true);
+  };
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -119,6 +100,8 @@ export default function AdminDashboard() {
   const handleActivate = async () => {
     if (!selectedDevice) return;
     try {
+      // Re-use amount for days in UI to keep form simple, but let backend handle days
+      const days = activationData.amount || 30;
       const res = await fetch('/api/admin/activate-device', {
         method: 'POST',
         headers: { 
@@ -127,10 +110,16 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({
           deviceId: selectedDevice,
-          ...activationData
+          clientName: activationData.clientName,
+          planType: activationData.planType,
+          minutes: activationData.minutes,
+          days: days,
+          amount: 0 // Optional real payment amounts if not tracked
         })
       });
       if (res.ok) {
+        const data = await res.json();
+        alert(`Licencia activada con éxito.\nLa Clave del cliente es:\n\n${data.authKey}\n\nEnvíale esta clave por WhatsApp.`);
         setShowActivateModal(false);
         fetchData();
       }
@@ -219,16 +208,25 @@ export default function AdminDashboard() {
           </button>
         </nav>
 
-        <button 
-          onClick={() => {
-            sessionStorage.removeItem("adminToken");
-            setIsLoggedIn(false);
-          }}
-          className="flex items-center gap-3 px-4 py-3 text-zinc-500 hover:text-red-400 transition-colors mt-auto"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>Cerrar Sesión</span>
-        </button>
+        <div className="mt-auto space-y-2">
+          <button 
+            onClick={() => window.location.href = '/app'}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 rounded-xl transition-all font-bold"
+          >
+            <ShieldCheck className="w-5 h-5" />
+            <span>Ir a la App (Admin)</span>
+          </button>
+          <button 
+            onClick={() => {
+              sessionStorage.removeItem("adminToken");
+              setIsLoggedIn(false);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-zinc-500 hover:text-red-400 transition-colors bg-zinc-800/50 rounded-xl hover:bg-zinc-800"
+          >
+            <LogOut className="w-5 h-5" />
+            <span>Cerrar Sesión</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -253,19 +251,19 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100">
                 <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Ganancias Totales</p>
-                <p className="text-3xl font-bold text-emerald-600">${stats.totalEarnings.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-emerald-600">${stats?.totalEarnings?.toFixed(2) || "0.00"}</p>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100">
                 <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Costo Google Cloud</p>
-                <p className="text-3xl font-bold text-red-500">${stats.googleCost.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-red-500">${stats?.googleCost?.toFixed(2) || "0.00"}</p>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100">
                 <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Margen Neto</p>
-                <p className="text-3xl font-bold text-indigo-600">${stats.profitMargin.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-indigo-600">${stats?.profitMargin?.toFixed(2) || "0.00"}</p>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100">
                 <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Minutos Consumidos</p>
-                <p className="text-3xl font-bold text-zinc-900">{Math.floor(stats.totalMinutesUsed)}m</p>
+                <p className="text-3xl font-bold text-zinc-900">{Math.floor(stats?.totalMinutesUsed || 0)}m</p>
               </div>
             </div>
 
@@ -319,6 +317,7 @@ export default function AdminDashboard() {
                   <tr className="bg-zinc-50 text-zinc-500 text-[10px] uppercase tracking-wider font-bold">
                     <th className="px-6 py-4">Cliente</th>
                     <th className="px-6 py-4">Device ID</th>
+                    <th className="px-6 py-4">Clave Acceso</th>
                     <th className="px-6 py-4">Estado</th>
                     <th className="px-6 py-4">Plan</th>
                     <th className="px-6 py-4">Minutos</th>
@@ -342,6 +341,10 @@ export default function AdminDashboard() {
 
                       <td className="px-6 py-4 font-mono text-xs text-zinc-500">
                         {device.device_id}
+                      </td>
+
+                      <td className="px-6 py-4 font-mono text-xs font-bold text-indigo-500">
+                        {device.auth_key || 'PENDIENTE'}
                       </td>
 
                       <td className="px-6 py-4">
@@ -369,7 +372,7 @@ export default function AdminDashboard() {
 
                       <td className="px-6 py-4">
                         <button
-                          onClick={() => activateDevice(device.device_id)}
+                          onClick={() => openActivateModal(device.device_id)}
                           className="text-indigo-600 hover:text-indigo-800 text-xs font-bold"
                         >
                           Activar licencia
@@ -427,16 +430,6 @@ export default function AdminDashboard() {
                   className="w-full px-4 py-2 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Clave de Autenticación</label>
-                <input 
-                  type="text" 
-                  value={activationData.authKey}
-                  onChange={e => setActivationData({...activationData, authKey: e.target.value})}
-                  placeholder="Ej: GRAO-XXXX-XXXX"
-                  className="w-full px-4 py-2 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
-              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Tipo de Plan</label>
@@ -451,24 +444,26 @@ export default function AdminDashboard() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Minutos</label>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Días de vigencia</label>
                   <input 
                     type="number" 
-                    value={activationData.minutes}
-                    onChange={e => setActivationData({...activationData, minutes: parseInt(e.target.value)})}
+                    value={activationData.amount}
+                    onChange={e => setActivationData({...activationData, amount: parseInt(e.target.value)})}
+                    placeholder="30"
                     className="w-full px-4 py-2 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Monto Pagado ($)</label>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Minutos a otorgar</label>
                 <input 
                   type="number" 
-                  value={activationData.amount}
-                  onChange={e => setActivationData({...activationData, amount: parseFloat(e.target.value)})}
+                  value={activationData.minutes}
+                  onChange={e => setActivationData({...activationData, minutes: parseInt(e.target.value)})}
                   className="w-full px-4 py-2 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
+
               <div className="flex gap-3 mt-8">
                 <button 
                   onClick={() => setShowActivateModal(false)}
