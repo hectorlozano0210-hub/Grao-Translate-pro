@@ -337,30 +337,12 @@ app.post("/api/device/register", deviceLimiter, async (req, res) => {
   }
 });
 
-// Alias endpoint used by client code
+// Alias endpoint used by client code - Removed ghost insert
 app.post("/api/client/register-id", deviceLimiter, async (req, res) => {
   try {
     const device_id = req.body.deviceId || req.body.device_id;
-
-    const [rows] = await pool.query(
-      "SELECT * FROM devices WHERE device_id = ?",
-      [device_id]
-    );
-
-    if (rows.length > 0) {
-      return res.json(rows[0]);
-    }
-
-    const authKey = crypto.randomBytes(32).toString("hex");
-
-    await pool.query(
-      `INSERT INTO devices 
-      (device_id, auth_key, status, total_minutes, remaining_minutes)
-      VALUES (?, ?, 'pending', 0, 0)`,
-      [device_id, authKey]
-    );
-
-    res.json({ message: "Device registered", device_id, authKey });
+    // Don't insert, just acknowledge. Let admin do the manual insert.
+    res.json({ message: "Device ID pre-flight ok", device_id });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Device registration error" });
@@ -443,20 +425,33 @@ try{
 const expiresAt = new Date();
 expiresAt.setDate(expiresAt.getDate()+days);
 
-const newAuthKey = "GRAO-" + crypto.randomBytes(4).toString("hex").toUpperCase();
+const [existing] = await pool.query("SELECT * FROM devices WHERE device_id = ?", [deviceId]) as any;
 
-await pool.query(`
-UPDATE devices
-SET status='active',
-auth_key=?,
-client_name=?,
-plan_type=?,
-total_minutes=total_minutes+?,
-remaining_minutes=remaining_minutes+?,
-expires_at=?
-WHERE device_id=?
-`,
-[newAuthKey, clientName || 'Sin Nombre', planType || 'Mensual', minutes, minutes, expiresAt, deviceId]);
+let finalAuthKey = "";
+
+if (existing.length === 0) {
+  finalAuthKey = "GRAO-" + crypto.randomBytes(4).toString("hex").toUpperCase();
+  await pool.query(`
+    INSERT INTO devices (device_id, auth_key, status, client_name, plan_type, total_minutes, remaining_minutes, expires_at)
+    VALUES (?, ?, 'active', ?, ?, ?, ?, ?)
+  `, [deviceId, finalAuthKey, clientName || 'Sin Nombre', planType || 'Mensual', minutes, minutes, expiresAt]);
+} else {
+  // If it was already active or pending, just top-up and update. For pending, we might generate a new key if it didn't have one, but old DB sets a 64-char key. Just generate a nice one if it's pending.
+  const isPending = existing[0].status === 'pending';
+  finalAuthKey = isPending ? "GRAO-" + crypto.randomBytes(4).toString("hex").toUpperCase() : existing[0].auth_key;
+  
+  await pool.query(`
+    UPDATE devices
+    SET status='active',
+    auth_key=?,
+    client_name=?,
+    plan_type=?,
+    total_minutes=total_minutes+?,
+    remaining_minutes=remaining_minutes+?,
+    expires_at=?
+    WHERE device_id=?
+  `, [finalAuthKey, clientName || existing[0].client_name, planType || existing[0].plan_type, minutes, minutes, expiresAt, deviceId]);
+}
 
 if (amount > 0) {
   await pool.query(`
@@ -466,8 +461,9 @@ if (amount > 0) {
 }
 
 res.json({
-success:true,
-authKey: newAuthKey
+  success:true,
+  authKey: finalAuthKey,
+  isNew: existing.length === 0
 });
 
 }catch(err){
@@ -477,6 +473,24 @@ res.status(500).json({error:"Activation failed"});
 
 }
 
+});
+
+/* ================================
+BORRAR DISPOSITIVO (ADMIN)
+================================ */
+app.delete("/api/admin/devices/:deviceId", verifyAdmin, async(req,res) => {
+  try {
+    const { deviceId } = req.params;
+    if (deviceId === 'ADMIN-MASTER-DEVICE') return res.status(400).json({error:"Cannot delete master"});
+    await pool.query("DELETE FROM call_history WHERE device_id=?", [deviceId]);
+    await pool.query("DELETE FROM usage_logs WHERE device_id=?", [deviceId]);
+    await pool.query("DELETE FROM payments WHERE device_id=?", [deviceId]);
+    await pool.query("DELETE FROM devices WHERE device_id=?", [deviceId]);
+    res.json({ success: true });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({error:"Delete failed"});
+  }
 });
 
 /* ================================

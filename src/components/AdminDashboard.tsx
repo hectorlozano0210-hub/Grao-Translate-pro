@@ -32,6 +32,7 @@ export default function AdminDashboard() {
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
   const [activationData, setActivationData] = useState({
+    deviceId: '',
     clientName: '',
     authKey: '',
     planType: 'Mensual',
@@ -65,7 +66,21 @@ export default function AdminDashboard() {
 
   const openActivateModal = (deviceId: string) => {
     setSelectedDevice(deviceId);
+    setActivationData({ ...activationData, deviceId: deviceId, amount: 30, minutes: 60 });
     setShowActivateModal(true);
+  };
+
+  const handleDelete = async (deviceId: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente el equipo ${deviceId}? Esto borrará su historial y minutos.`)) return;
+    try {
+      const res = await fetch(`/api/admin/devices/${deviceId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) fetchData();
+    } catch (err) {
+      console.error(err);
+    }
   };
   const fetchData = async () => {
     setLoading(true);
@@ -109,17 +124,21 @@ export default function AdminDashboard() {
           ...getAuthHeaders()
         },
         body: JSON.stringify({
-          deviceId: selectedDevice,
+          deviceId: activationData.deviceId || selectedDevice, // fallback
           clientName: activationData.clientName,
           planType: activationData.planType,
           minutes: activationData.minutes,
           days: days,
-          amount: 0 // Optional real payment amounts if not tracked
+          amount: activationData.amount // Include payment info if added
         })
       });
       if (res.ok) {
         const data = await res.json();
-        alert(`Licencia activada con éxito.\nLa Clave del cliente es:\n\n${data.authKey}\n\nEnvíale esta clave por WhatsApp.`);
+        if (data.isNew || data.authKey) {
+          alert(`Licencia gestionada con éxito.\nLa Clave del cliente es:\n\n${data.authKey}\n\nEnvíale esta clave por WhatsApp.`);
+        } else {
+          alert('Recarga aplicada exitosamente.');
+        }
         setShowActivateModal(false);
         fetchData();
       }
@@ -310,6 +329,13 @@ export default function AdminDashboard() {
                   className="w-full pl-10 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </div>
+              <button 
+                onClick={() => openActivateModal('')}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-bold text-sm shadow-indigo-500/20"
+              >
+                <PlusCircle className="w-5 h-5" />
+                Registrar Licencia
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -371,12 +397,20 @@ export default function AdminDashboard() {
                       </td>
 
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => openActivateModal(device.device_id)}
-                          className="text-indigo-600 hover:text-indigo-800 text-xs font-bold"
-                        >
-                          Activar licencia
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => openActivateModal(device.device_id)}
+                            className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] uppercase font-bold rounded-lg transition-colors border border-indigo-100"
+                          >
+                            Recargar 
+                          </button>
+                          <button
+                            onClick={() => handleDelete(device.device_id)}
+                            className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] uppercase font-bold rounded-lg transition-colors border border-red-100"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </td>
 
                     </tr>
@@ -418,8 +452,20 @@ export default function AdminDashboard() {
       {showActivateModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">Configurar Equipo</h2>
+            <h2 className="text-2xl font-bold mb-6">{selectedDevice ? 'Recargar Equipo' : 'Registrar Nuevo Equipo'}</h2>
             <div className="space-y-4">
+              {!selectedDevice && (
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">ID del Dispositivo (DEV-XXXX)</label>
+                  <input 
+                    type="text" 
+                    value={activationData.deviceId}
+                    onChange={e => setActivationData({...activationData, deviceId: e.target.value.toUpperCase()})}
+                    placeholder="El que cliente envía por WhatsApp"
+                    className="w-full px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-mono text-xs"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Nombre del Cliente</label>
                 <input 

@@ -42,10 +42,51 @@ export default function ClientApp() {
   const [voiceType, setVoiceType] = useState<'Kore' | 'Fenrir'>('Kore');
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [inputText, setInputText] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+
+      recognitionRef.current.onstart = () => setIsRecording(true);
+      recognitionRef.current.onend = () => setIsRecording(false);
+
+      recognitionRef.current.onresult = async (event: any) => {
+        const text = event.results[0][0].transcript;
+        if (text) handleTranslate(text, 'me');
+      };
+    }
+  }, []);
+
+  const toggleRecording = () => {
+    if (!recognitionRef.current) return alert("Tu navegador no soporta dictado por voz");
+    if (isRecording) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.lang = fromLang === 'English' ? 'en-US' : 'es-ES';
+      recognitionRef.current.start();
+    }
+  };
+
+  const handleTextSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputText.trim()) return;
+    handleTranslate(inputText, 'me');
+    setInputText("");
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // Optional: show a small toast here
+  };   
      
   useEffect(() => {
     const registerDevice = async () => {
@@ -392,8 +433,15 @@ export default function ClientApp() {
                       {msg.sender === 'me' ? fromLang : toLang}
                     </p>
                     <p className="text-sm mb-2">{msg.text}</p>
-                    <div className="pt-2 border-t border-white/10">
-                      <p className="text-xs font-bold text-white/80">{msg.translation}</p>
+                    <div className="pt-2 border-t border-white/10 relative">
+                      <p className="text-xs font-bold text-white/80 pr-6">{msg.translation}</p>
+                      <button 
+                        onClick={() => copyToClipboard(msg.translation)}
+                        className="absolute right-0 top-2 opacity-50 hover:opacity-100 transition-opacity"
+                        title="Copiar traducción"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                      </button>
                     </div>
                     <span className="text-[8px] opacity-40 absolute bottom-1 right-2">
                       {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -406,50 +454,73 @@ export default function ClientApp() {
 
             {/* Controls */}
             <div className="sticky bottom-4 space-y-4">
-              <div className="flex items-center gap-3 bg-zinc-900 p-3 rounded-3xl border border-zinc-800 shadow-xl">
+              
+              {/* Voice Selector */}
+              <div className="flex bg-zinc-900 p-1 mx-8 rounded-full border border-zinc-800 shadow-lg">
+                <button 
+                  onClick={() => setVoiceType('Kore')}
+                  className={cn("flex-1 py-2 rounded-full text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2", 
+                    voiceType === 'Kore' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "text-zinc-500 hover:text-white")}
+                >
+                  👩🏻 Femenina
+                </button>
+                <button 
+                  onClick={() => setVoiceType('Fenrir')}
+                  className={cn("flex-1 py-2 rounded-full text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2", 
+                    voiceType === 'Fenrir' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "text-zinc-500 hover:text-white")}
+                >
+                  👨🏻 Masculina
+                </button>
+              </div>
+
+              {/* Language Switch */}
+              <div className="flex items-center justify-center gap-3 bg-zinc-900/50 p-2 rounded-3xl backdrop-blur-sm border border-zinc-800/50">
+                <span className="text-xs font-bold text-zinc-400">{fromLang}</span>
                 <button 
                   onClick={() => {
                     setFromLang(fromLang === 'English' ? 'Spanish' : 'English');
                     setToLang(toLang === 'English' ? 'Spanish' : 'English');
                   }}
-                  className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-all"
+                  className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-all hover:bg-zinc-700"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className="w-3 h-3" />
                 </button>
-                <div className="flex-1 text-center">
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{fromLang} → {toLang}</span>
-                </div>
-                <button 
-                  onClick={() => setVoiceType(voiceType === 'Kore' ? 'Fenrir' : 'Kore')}
-                  className="px-3 py-1 bg-zinc-800 rounded-full text-[9px] font-bold text-indigo-400 uppercase"
-                >
-                  {voiceType === 'Kore' ? 'Voz Fem' : 'Voz Masc'}
-                </button>
+                <span className="text-xs font-bold text-zinc-400">{toLang}</span>
               </div>
 
-              <div className="flex items-center gap-4 justify-center">
-                <button 
-                  onClick={() => handleTranslate(fromLang === 'English' ? "Hello friend" : "Hola amigo", 'other')}
-                  className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 text-zinc-500 hover:text-white"
-                >
-                  <User className="w-5 h-5" />
-                </button>
+              {/* Input Area */}
+              <div className="flex gap-2">
+                <form onSubmit={handleTextSubmit} className="flex-1">
+                  <input 
+                    type="text"
+                    value={inputText}
+                    onChange={e => setInputText(e.target.value)}
+                    placeholder="Escribe para traducir..."
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all font-medium"
+                  />
+                </form>
                 
+                <button 
+                  onClick={toggleRecording}
+                  className={cn(
+                    "w-12 h-12 flex-shrink-0 rounded-2xl flex items-center justify-center transition-all shadow-xl",
+                    isRecording 
+                      ? "bg-red-500 text-white animate-pulse shadow-red-500/30" 
+                      : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-600/20"
+                  )}
+                >
+                  {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </button>
+
                 <button 
                   onClick={toggleCall}
                   className={cn(
-                    "w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-90 shadow-2xl",
-                    isCallActive ? "bg-red-500 shadow-red-500/20" : "bg-emerald-500 shadow-emerald-500/20"
+                    "w-12 h-12 flex-shrink-0 rounded-2xl flex items-center justify-center transition-all shadow-xl",
+                    isCallActive ? "bg-red-500 shadow-red-500/20 text-white" : "bg-emerald-500 shadow-emerald-500/20 text-white"
                   )}
+                  title={isCallActive ? "Finalizar Llamada" : "Iniciar Conteo de Llamada"}
                 >
-                  <Phone className={cn("w-6 h-6 text-white", isCallActive && "rotate-[135deg]")} />
-                </button>
-
-                <button 
-                  onClick={() => handleTranslate(fromLang === 'English' ? "How can I help you?" : "¿En qué puedo ayudarte?", 'me')}
-                  className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 text-zinc-500 hover:text-white"
-                >
-                  <Send className="w-5 h-5" />
+                  <Phone className={cn("w-5 h-5", isCallActive && "rotate-[135deg]")} />
                 </button>
               </div>
             </div>
