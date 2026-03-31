@@ -7,25 +7,7 @@ import { cn } from '../lib/utils';
 
 import { getDeviceId } from "../utils/device";
 
-    useEffect(() => {
 
-    const registerDevice = async () => {
-
-    const device_id = getDeviceId();
-
-    await fetch("/api/device/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ device_id })
-    });
-
-  };
-
-  registerDevice();
-
-}, []);
 
 interface ChatMessage {
   id: string;
@@ -65,6 +47,18 @@ export default function ClientApp() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   
      
+  useEffect(() => {
+    const registerDevice = async () => {
+      const device_id = getDeviceId();
+      await fetch("/api/device/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_id })
+      });
+    };
+    registerDevice();
+  }, []);
+
   useEffect(() => {
 
   const storedId =
