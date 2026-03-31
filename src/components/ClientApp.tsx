@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { translateText, generateSpeech } from '../services/geminiService';
 import { cn } from '../lib/utils';
 
-import { getDeviceId } from "./utils/device";
+import { getDeviceId } from "../utils/device";
 
     useEffect(() => {
 

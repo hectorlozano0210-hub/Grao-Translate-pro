@@ -1,5 +1,5 @@
 import express from "express";
-import db from "../db";
+import { pool as db } from "../../src/database/db.js";
 
 const router = express.Router();
 
@@ -12,7 +12,7 @@ router.post("/register-id", async (req, res) => {
     const [rows] = await db.query(
       "SELECT id FROM devices WHERE device_id = ?",
       [deviceId]
-    );
+    ) as [any[], any];
 
     if (rows.length === 0) {
 
