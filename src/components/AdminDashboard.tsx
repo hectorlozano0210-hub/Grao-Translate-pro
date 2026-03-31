@@ -22,7 +22,7 @@ interface Payment {
 }
 
 export default function AdminDashboard() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(!!sessionStorage.getItem("adminToken"));
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [activeTab, setActiveTab] = useState<'devices' | 'stats' | 'payments'>('devices');
   const [devices, setDevices] = useState<Device[]>([]);
@@ -39,6 +39,11 @@ export default function AdminDashboard() {
     amount: 0
   });
 
+  const getAuthHeaders = () => {
+    const token = sessionStorage.getItem("adminToken");
+    return { 'Authorization': `Bearer ${token}` };
+  };
+
   const handleLogin = async () => {
     try {
       const res = await fetch('/api/admin/login', {
@@ -47,10 +52,11 @@ export default function AdminDashboard() {
         body: JSON.stringify(loginData)
       });
       if (res.ok) {
+        const data = await res.json();
+        sessionStorage.setItem("adminToken", data.token);
         setIsLoggedIn(true);
-        fetchData();
       } else {
-        alert("Credenciales inválidas");
+        alert("Credenciales/Usuario inválido");
       }
     } catch (err) {
       console.error(err);
@@ -67,7 +73,8 @@ export default function AdminDashboard() {
   await fetch("/api/admin/activate-device", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...getAuthHeaders()
     },
     body: JSON.stringify({
       deviceId,
@@ -82,11 +89,19 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const headers = getAuthHeaders();
       const [devRes, statsRes, payRes] = await Promise.all([
-        fetch('/api/admin/devices'),
-        fetch('/api/admin/stats'),
-        fetch('/api/admin/payments')
+        fetch('/api/admin/devices', { headers }),
+        fetch('/api/admin/stats', { headers }),
+        fetch('/api/admin/payments', { headers })
       ]);
+
+      if (devRes.status === 401 || statsRes.status === 401) {
+        sessionStorage.removeItem("adminToken");
+        setIsLoggedIn(false);
+        return;
+      }
+
       setDevices(await devRes.json());
       setStats(await statsRes.json());
       setPayments(await payRes.json());
@@ -106,7 +121,10 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api/admin/activate-device', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify({
           deviceId: selectedDevice,
           ...activationData
@@ -202,7 +220,10 @@ export default function AdminDashboard() {
         </nav>
 
         <button 
-          onClick={() => setIsLoggedIn(false)}
+          onClick={() => {
+            sessionStorage.removeItem("adminToken");
+            setIsLoggedIn(false);
+          }}
           className="flex items-center gap-3 px-4 py-3 text-zinc-500 hover:text-red-400 transition-colors mt-auto"
         >
           <LogOut className="w-5 h-5" />

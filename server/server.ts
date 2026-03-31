@@ -8,6 +8,8 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import crypto from "crypto";
+import cors from "cors";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 
@@ -18,20 +20,34 @@ const GOOGLE_COST_PER_MINUTE = 0.024;
 
 async function startServer() {
 
+const JWT_SECRET = process.env.JWT_SECRET || "default_super_secret_for_dev_only";
+
+const allowedOrigins = [
+  "https://graotranslate.masterfixpc.com",
+  "https://graotranslate.masterfixopc", // Just in case from previous message
+  "http://localhost:5173",
+  "http://localhost:3000"
+];
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server,{
    cors:{
-   origin:"*"
+     origin: allowedOrigins,
+     credentials: true
    }
 });
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 // basic rate limiter for auth endpoints
 const authLimiter = rateLimit({ windowMs: 60 * 1000, max: 10 });
+// rate limiter for device registration to prevent DDoS
+const deviceLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+
 
 /*======================*/
 
@@ -43,12 +59,28 @@ if (
 username === process.env.ADMIN_USER &&
 password === process.env.ADMIN_PASS
 ) {
-return res.json({ success: true });
+const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '12h' });
+return res.json({ success: true, token });
 }
 
 res.status(401).json({ error: "Invalid credentials" });
 
 });
+
+const verifyAdmin = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    jwt.verify(token, JWT_SECRET);
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+};
+
 /*================================
    VERIFICAR LICENCIA
 ===============================*/
@@ -104,7 +136,7 @@ app.post("/api/device/check", async (req, res) => {
 });
 
 /*================================*/
-app.get("/api/admin/stats", async (req, res) => {
+app.get("/api/admin/stats", verifyAdmin, async (req, res) => {
 
 try {
 
@@ -143,7 +175,7 @@ res.status(500).json({ error: "Stats error" });
 });
 
 /*==================================*/
-app.get("/api/admin/payments", async (req,res)=>{
+app.get("/api/admin/payments", verifyAdmin, async (req,res)=>{
 
 try{
 
@@ -271,7 +303,7 @@ async function flushSession(session:any, socket?: any) {
 /*=================================
 REGISTRAR DISPOSITIVO EN SERVIDOR
 =================================*/
-app.post("/api/device/register", async (req, res) => {
+app.post("/api/device/register", deviceLimiter, async (req, res) => {
   try {
     const { device_id } = req.body;
 
@@ -306,7 +338,7 @@ app.post("/api/device/register", async (req, res) => {
 });
 
 // Alias endpoint used by client code
-app.post("/api/client/register-id", async (req, res) => {
+app.post("/api/client/register-id", deviceLimiter, async (req, res) => {
   try {
     const device_id = req.body.deviceId || req.body.device_id;
 
@@ -406,7 +438,7 @@ app.post('/api/client/auth', authLimiter, async (req, res) => {
 ACTIVAR DISPOSITIVO (ADMIN)
 ================================ */
 
-app.post("/api/admin/activate-device", async(req,res)=>{
+app.post("/api/admin/activate-device", verifyAdmin, async(req,res)=>{
 
 const {deviceId,minutes,days} = req.body;
 
@@ -442,7 +474,7 @@ res.status(500).json({error:"Activation failed"});
 LISTAR DISPOSITIVOS
 ================================ */
 
-app.get("/api/admin/devices", async(req,res)=>{
+app.get("/api/admin/devices", verifyAdmin, async(req,res)=>{
 
 try{
 
