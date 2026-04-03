@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Phone, Mic, MicOff, Globe, User, MessageCircle, AlertCircle, LogOut, RefreshCw, History, CreditCard, Send, HelpCircle } from 'lucide-react';
+import { Phone, Mic, MicOff, Globe, User, MessageCircle, AlertCircle, LogOut, RefreshCw, History, CreditCard, Send, HelpCircle, X } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
-import { translateText, generateSpeech } from '../services/geminiService';
+import { translateText } from '../services/geminiService';
 import { cn } from '../lib/utils';
-
 import { getDeviceId } from "../utils/device";
-
-
 
 interface ChatMessage {
   id: string;
@@ -25,6 +22,27 @@ interface CallRecord {
   created_at: string;
 }
 
+const speakText = (text: string, lang: string, voiceType: string) => {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  
+  if (lang === 'English') utterance.lang = 'en-US';
+  if (lang === 'Spanish') utterance.lang = 'es-ES';
+  if (lang === 'French') utterance.lang = 'fr-FR';
+  if (lang === 'German') utterance.lang = 'de-DE';
+  
+  const voices = window.speechSynthesis.getVoices();
+  const targetVoices = voices.filter(v => v.lang.startsWith(utterance.lang.substring(0,2)));
+  if (targetVoices.length > 0) {
+     utterance.voice = targetVoices[0]; 
+  }
+  
+  utterance.rate = 0.95;
+  window.speechSynthesis.speak(utterance);
+};
+
+
 export default function ClientApp() {
   const [deviceId, setDeviceId] = useState('');
   const [authKey, setAuthKey] = useState('');
@@ -32,18 +50,16 @@ export default function ClientApp() {
   const [clientName, setClientName] = useState('');
   const [remainingMinutes, setRemainingMinutes] = useState(0);
   const [isCallActive, setIsCallActive] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  const [recordingLang, setRecordingLang] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [callHistory, setCallHistory] = useState<CallRecord[]>([]);
   const [activeView, setActiveView] = useState<'chat' | 'history' | 'payment' | 'help'>('chat');
   
-  const [fromLang, setFromLang] = useState('English');
-  const [toLang, setToLang] = useState('Spanish');
+  const [fromLang, setFromLang] = useState('Spanish');
+  const [toLang, setToLang] = useState('English');
   const [voiceType, setVoiceType] = useState<'Kore' | 'Fenrir'>('Kore');
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [inputText, setInputText] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
   const [isMirrorMode, setIsMirrorMode] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
@@ -57,36 +73,36 @@ export default function ClientApp() {
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
 
-      recognitionRef.current.onstart = () => setIsRecording(true);
-      recognitionRef.current.onend = () => setIsRecording(false);
+      recognitionRef.current.onstart = () => {};
+      recognitionRef.current.onend = () => setRecordingLang(null);
 
       recognitionRef.current.onresult = async (event: any) => {
         const text = event.results[0][0].transcript;
-        if (text) handleTranslate(text, 'me');
+        const currentLang = recognitionRef.current.lang.includes('es') ? 'Spanish' : 'English';
+        if (text) handleTranslate(text, currentLang);
       };
+    }
+    
+    if ('speechSynthesis' in window) {
+       window.speechSynthesis.getVoices();
     }
   }, []);
 
-  const toggleRecording = () => {
+  const startRecording = (langToListen: string) => {
     if (!recognitionRef.current) return alert("Tu navegador no soporta dictado por voz");
-    if (isRecording) {
+    if (recordingLang === langToListen) {
       recognitionRef.current.stop();
-    } else {
-      recognitionRef.current.lang = fromLang === 'English' ? 'en-US' : 'es-ES';
-      recognitionRef.current.start();
+      setRecordingLang(null);
+      return;
     }
-  };
-
-  const handleTextSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
-    handleTranslate(inputText, 'me');
-    setInputText("");
+    if (recordingLang) recognitionRef.current.stop();
+    setRecordingLang(langToListen);
+    recognitionRef.current.lang = langToListen === 'English' ? 'en-US' : 'es-ES';
+    recognitionRef.current.start();
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    // Optional: show a small toast here
   };   
      
   useEffect(() => {
@@ -160,38 +176,22 @@ export default function ClientApp() {
  
    
   useEffect(() => {
-
   const checkLicense = async () => {
-
     const id = localStorage.getItem("grao_device_id");
-
     if (!id) return;
-
     const res = await fetch("/api/client/validate-device", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        deviceId: id
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId: id })
     });
-
     const data = await res.json();
-
     if (!data.valid) {
-
       setError(data.message);
       return;
-
     }
-
     setRemainingMinutes(data.minutes);
-
   };
-
   checkLicense();
-
 }, []);
 
 
@@ -202,13 +202,10 @@ export default function ClientApp() {
   const fetchHistory = async () => {
     const id = deviceId || localStorage.getItem("grao_device_id");
     if (!id) return;
-
     try {
       const res = await fetch(`/api/client/calls/${id}`);
       setCallHistory(await res.json());
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const reloadAdminMinutes = async () => {
@@ -256,7 +253,6 @@ export default function ClientApp() {
         setRemainingMinutes(data.device.remaining_minutes);
         fetchHistory();
         setError(null);
-        // create authenticated socket AFTER login
         socketRef.current = io(window.location.origin, { auth: { deviceId, authKey } });
         setupSocketListeners(socketRef.current);
       } else {
@@ -276,14 +272,16 @@ export default function ClientApp() {
       }
       socketRef.current?.emit('start_call', { deviceId, fromLang, toLang });
       setIsCallActive(true);
-      setMessages([]); // Clear chat for new call
+      setMessages([]); 
     }
   };
 
-  const handleTranslate = async (text: string, sender: 'me' | 'other' = 'me') => {
+  const handleTranslate = async (text: string, spokenLang: string) => {
     if (!text) return;
     try {
-      const translated = await translateText(text, fromLang, toLang);
+      const targetLang = spokenLang === fromLang ? toLang : fromLang;
+      const translated = await translateText(text, spokenLang, targetLang);
+      const sender = spokenLang === fromLang ? 'me' : 'other';
       const newMessage: ChatMessage = {
         id: Math.random().toString(36).substr(2, 9),
         text,
@@ -293,12 +291,12 @@ export default function ClientApp() {
       };
       setMessages(prev => [...prev, newMessage]);
       
-      const audioBase64 = await generateSpeech(translated, voiceType);
-      if (audioBase64) {
-        new Audio(`data:audio/mp3;base64,${audioBase64}`).play();
-      }
+      speakText(translated, targetLang, voiceType);
     } catch (err) { console.error(err); }
   };
+
+  const myLastMsg = [...messages].reverse().find(m => m.sender === 'me');
+  const otherLastMsg = [...messages].reverse().find(m => m.sender === 'other');
 
   if (!isAuthenticated) {
     return (
@@ -333,7 +331,7 @@ export default function ClientApp() {
                 value={authKey}
                 onChange={e => setAuthKey(e.target.value)}
                 placeholder="GRAO-XXXX-XXXX"
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all"
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all font-mono"
               />
             </div>
             {error && (
@@ -353,14 +351,6 @@ export default function ClientApp() {
           <div className="mt-12 text-center">
             <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Desarrollado por</p>
             <p className="text-sm font-medium text-zinc-400">Hector Lozano Design</p>
-            <a 
-              href="https://wa.me/573504257018" 
-              target="_blank" 
-              className="inline-flex items-center gap-2 mt-4 text-emerald-500 hover:text-emerald-400 transition-colors text-sm"
-            >
-              <MessageCircle className="w-4 h-4" />
-              Soporte WhatsApp
-            </a>
           </div>
         </motion.div>
       </div>
@@ -368,23 +358,142 @@ export default function ClientApp() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white font-sans flex flex-col">
+    <div className="min-h-[100dvh] bg-zinc-950 text-white font-sans flex flex-col relative overflow-hidden">
+      {/* Face To Face Overlay */}
+      <AnimatePresence>
+        {isMirrorMode && (
+          <motion.div 
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-50 bg-black flex flex-col"
+          >
+            {/* Top Half (Inverted) */}
+            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-zinc-900 border-b-2 border-indigo-500/50 relative rotate-180">
+              <span className="absolute top-4 left-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{toLang}</span>
+              <div className="max-w-2xl w-full text-center mb-16 px-4">
+                   <p className="text-3xl sm:text-4xl font-bold text-white leading-tight">
+                     {otherLastMsg ? otherLastMsg.translation : "..."}
+                   </p>
+              </div>
+              <button 
+                onClick={() => startRecording(toLang)}
+                className={cn(
+                  "w-16 h-16 rounded-full flex flex-col items-center justify-center transition-all shadow-2xl absolute bottom-8",
+                  recordingLang === toLang ? "bg-red-500 animate-pulse scale-110 shadow-red-500/50" : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30"
+                )}
+              >
+                 <Mic className="w-6 h-6 text-white" />
+                 <span className="text-[8px] font-bold uppercase mt-1">{toLang.substring(0,2)}</span>
+              </button>
+            </div>
+            
+            {/* Bottom Half */}
+            <div className="flex-1 flex flex-col items-center justify-center p-8 bg-zinc-950 relative">
+              <span className="absolute top-4 left-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{fromLang}</span>
+              <button 
+                onClick={() => setIsMirrorMode(false)}
+                className="absolute top-4 right-4 bg-zinc-800/80 text-white p-3 rounded-full hover:bg-zinc-700 transition backdrop-blur-xl border border-zinc-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="max-w-2xl w-full text-center mb-16 px-4">
+                   <p className="text-3xl sm:text-4xl font-bold text-white leading-tight">
+                     {myLastMsg ? myLastMsg.translation : "..."}
+                   </p>
+              </div>
+              
+              <button 
+                onClick={() => startRecording(fromLang)}
+                className={cn(
+                  "w-16 h-16 rounded-full flex flex-col items-center justify-center transition-all shadow-2xl absolute bottom-8",
+                  recordingLang === fromLang ? "bg-red-500 animate-pulse scale-110 shadow-red-500/50" : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30"
+                )}
+              >
+                 <Mic className="w-6 h-6 text-white" />
+                 <span className="text-[8px] font-bold uppercase mt-1">{fromLang.substring(0,2)}</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Call Overlay WhatsApp Style */}
+      <AnimatePresence>
+        {isCallActive && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-50 bg-zinc-950 flex flex-col items-center justify-between p-8 backdrop-blur-3xl"
+          >
+            <div className="w-full max-w-sm flex flex-col items-center pt-8">
+                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-6">Traducción Telefónica Segura</p>
+                <div className={cn(
+                  "w-24 h-24 sm:w-32 sm:h-32 rounded-full mx-auto mb-4 flex items-center justify-center shadow-2xl border-4 border-zinc-800 transition-all duration-700",
+                  recordingLang ? "bg-indigo-600 border-indigo-500 shadow-indigo-600/50 animate-pulse scale-105" : "bg-zinc-800 shadow-black"
+                )}>
+                   {recordingLang ? <Mic className="w-10 h-10 text-white" /> : <Phone className="w-10 h-10 text-zinc-500" />}
+                </div>
+                <h2 className="text-2xl font-bold text-white">Traducción IAM</h2>
+                <p className="text-zinc-500 font-mono mt-1 text-sm">En curso...</p>
+            </div>
+            
+            <div className="flex flex-col gap-4 w-full max-w-sm mb-4">
+               <div className="bg-zinc-900/80 p-5 rounded-3xl min-h-[120px] flex flex-col items-center justify-center text-center border border-zinc-800 shadow-inner overflow-hidden relative">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl"></div>
+                 <p className="text-zinc-500 text-[10px] font-bold mb-2 uppercase tracking-wide">Último Mensaje Traducido</p>
+                 <p className="text-white text-base sm:text-lg font-medium leading-relaxed z-10">"{messages[messages.length-1]?.translation || 'Esperando voz...'}"</p>
+               </div>
+               
+               <div className="flex gap-3">
+                  <button 
+                    onClick={() => startRecording(fromLang)} 
+                    className={cn(
+                      "flex-1 py-4 rounded-3xl flex flex-col items-center justify-center gap-1 transition-all font-bold shadow-lg border",
+                      recordingLang === fromLang ? "bg-red-500 text-white border-red-400 shadow-red-500/20" : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800 border-zinc-700"
+                    )}
+                  >
+                    <Mic className="w-5 h-5 mb-1" />
+                    <span className="text-[10px] uppercase">Hablar en</span>
+                    <span className="text-sm">{fromLang}</span>
+                  </button>
+                  <button 
+                    onClick={() => startRecording(toLang)} 
+                    className={cn(
+                      "flex-1 py-4 rounded-3xl flex flex-col items-center justify-center gap-1 transition-all font-bold shadow-lg border",
+                      recordingLang === toLang ? "bg-red-500 text-white border-red-400 shadow-red-500/20" : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800 border-zinc-700"
+                    )}
+                  >
+                    <Mic className="w-5 h-5 mb-1" />
+                    <span className="text-[10px] uppercase">Hablar en</span>
+                    <span className="text-sm">{toLang}</span>
+                  </button>
+               </div>
+               <button onClick={toggleCall} className="w-full py-4 mt-2 rounded-full bg-red-500 hover:bg-red-600 text-white font-bold flex items-center justify-center gap-2 shadow-xl shadow-red-500/20 text-sm">
+                 <Phone className="w-4 h-4 rotate-[135deg]" /> Finalizar Llamada
+               </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <header className="p-4 flex justify-between items-center border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-20">
         <div className="flex items-center gap-4">
           <button onClick={() => window.location.href = '/'} className="mr-1 text-zinc-500 hover:text-white transition-colors" title="Inicio">
             <LogOut className="w-5 h-5 rotate-180" />
           </button>
-          <div className="w-14 h-14 bg-zinc-800 rounded-2xl flex items-center justify-center border border-zinc-700 overflow-hidden shadow-lg">
+          <div className="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center border border-zinc-700 overflow-hidden shadow-lg">
              <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover scale-110" />
           </div>
           <div>
-            <h2 className="font-bold text-sm">{clientName}</h2>
+            <h2 className="font-bold text-xs">{clientName}</h2>
             <div className="flex items-center gap-1.5">
-              <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isCallActive ? "bg-emerald-500" : "bg-zinc-600")} />
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
-                {isCallActive ? "En línea" : "Desconectado"}
-              </span>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[9px] text-zinc-500 uppercase tracking-wider">Online</span>
             </div>
           </div>
         </div>
@@ -400,7 +509,7 @@ export default function ClientApp() {
           <div className="text-right">
             <p className="text-[9px] text-zinc-500 uppercase font-bold mb-0.5">Saldo</p>
             <p className={cn(
-              "text-sm font-mono font-bold",
+              "text-xs font-mono font-bold",
               remainingMinutes < 5 ? "text-amber-500" : "text-emerald-500"
             )}>
               {Math.floor(remainingMinutes)}:{Math.floor((remainingMinutes % 1) * 60).toString().padStart(2, '0')}m
@@ -415,19 +524,19 @@ export default function ClientApp() {
           onClick={() => setActiveView('chat')}
           className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'chat' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
-          <MessageCircle className="w-4 h-4" /> Chat
+          <MessageCircle className="w-4 h-4" /> Inicio
         </button>
         <button 
           onClick={() => setActiveView('history')}
           className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'history' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
-          <History className="w-4 h-4" /> Historial
+          <History className="w-4 h-4" /> Historico
         </button>
         <button 
           onClick={() => setActiveView('payment')}
           className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'payment' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
-          <CreditCard className="w-4 h-4" /> Recarga
+          <CreditCard className="w-4 h-4" /> Recargas
         </button>
         <button 
           onClick={() => setActiveView('help')}
@@ -440,128 +549,70 @@ export default function ClientApp() {
       {/* Main View */}
       <main className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {activeView === 'chat' && (
-          <>
-            <div className="flex-1 flex flex-col gap-3">
-              <AnimatePresence initial={false}>
-                {messages.map((msg) => (
-                  <motion.div 
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    className={cn(
-                      "p-3 rounded-2xl shadow-sm relative transition-all duration-500",
-                      msg.sender === 'me' 
-                        ? "bg-indigo-600 self-end rounded-tr-none max-w-[85%]" 
-                        : cn("bg-zinc-800 self-start rounded-tl-none max-w-[85%]", isMirrorMode && "rotate-180 self-center w-[90%] max-w-full my-8 shadow-xl shadow-black/50 border border-zinc-700")
-                    )}
+          <div className="flex-1 flex flex-col h-full bg-zinc-900/30 rounded-3xl border border-zinc-800/50 p-6 relative justify-center items-center overflow-hidden">
+             
+             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl z-0 pointer-events-none"></div>
+
+             <div className="z-10 w-full max-w-sm flex flex-col gap-6">
+                <div className="text-center mb-4">
+                   <h2 className="text-xl font-bold text-white mb-2">Herramientas</h2>
+                   <p className="text-zinc-500 text-xs">Selecciona cómo vas a traducir</p>
+                </div>
+
+                <div className="flex bg-zinc-900 p-1 rounded-full border border-zinc-800 shadow-xl mb-4">
+                  <button 
+                    onClick={() => setVoiceType('Kore')}
+                    className={cn("flex-1 py-2 rounded-full text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2", 
+                      voiceType === 'Kore' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "text-zinc-500 hover:text-white")}
                   >
-                    <p className="text-xs opacity-60 font-bold uppercase mb-1">
-                      {msg.sender === 'me' ? fromLang : toLang}
-                    </p>
-                    <p className="text-sm mb-2">{msg.text}</p>
-                    <div className="pt-2 border-t border-white/10 relative">
-                      <p className="text-xs font-bold text-white/80 pr-6">{msg.translation}</p>
-                      <button 
-                        onClick={() => copyToClipboard(msg.translation)}
-                        className="absolute right-0 top-2 opacity-50 hover:opacity-100 transition-opacity"
-                        title="Copiar traducción"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                      </button>
-                    </div>
-                    <span className="text-[8px] opacity-40 absolute bottom-1 right-2">
-                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              <div ref={chatEndRef} />
-            </div>
+                    👩🏻 Habilitar Voz
+                  </button>
+                  <button 
+                    onClick={() => setVoiceType('Fenrir')}
+                    className={cn("flex-1 py-2 rounded-full text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2", 
+                      voiceType === 'Fenrir' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "text-zinc-500 hover:text-white")}
+                  >
+                    👨🏻 Habilitar Voz
+                  </button>
+                </div>
 
-            {/* Controls */}
-            <div className="sticky bottom-4 space-y-4 pb-2">
-              
-              <div className="flex justify-center mb-5 mt-2">
-                <button 
-                  onClick={() => setIsMirrorMode(!isMirrorMode)} 
-                  className={cn("px-4 py-2 rounded-full text-xs font-bold uppercase transition-all flex items-center gap-2 border shadow-[0_0_15px_rgba(0,0,0,0.5)]", isMirrorMode ? "bg-indigo-600 border-indigo-500 text-white shadow-indigo-600/30" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white")}
-                >
-                  🪞 Modo Espejo (Face-to-Face)
-                </button>
-              </div>
+                <div className="flex items-center justify-center gap-3 bg-zinc-900/80 p-4 rounded-3xl backdrop-blur-sm border border-zinc-800">
+                  <span className="text-sm font-bold text-zinc-300 flex-1 text-center">{fromLang}</span>
+                  <button 
+                    onClick={() => {
+                      setFromLang(fromLang === 'English' ? 'Spanish' : 'English');
+                      setToLang(toLang === 'English' ? 'Spanish' : 'English');
+                    }}
+                    className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-indigo-400 hover:text-white transition-all shadow-inner"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                  <span className="text-sm font-bold text-zinc-300 flex-1 text-center">{toLang}</span>
+                </div>
 
-              {/* Voice Selector */}
-              <div className="flex bg-zinc-900 p-1 mx-8 rounded-full border border-zinc-800 shadow-lg">
                 <button 
-                  onClick={() => setVoiceType('Kore')}
-                  className={cn("flex-1 py-2 rounded-full text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2", 
-                    voiceType === 'Kore' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "text-zinc-500 hover:text-white")}
+                  onClick={() => setIsMirrorMode(true)} 
+                  className="w-full bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-500 hover:to-indigo-700 py-6 rounded-3xl text-sm font-bold uppercase transition-all flex flex-col items-center gap-2 border border-indigo-500/50 shadow-xl shadow-indigo-900/30 group mt-4 relative overflow-hidden"
                 >
-                  👩🏻 Femenina
-                </button>
-                <button 
-                  onClick={() => setVoiceType('Fenrir')}
-                  className={cn("flex-1 py-2 rounded-full text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2", 
-                    voiceType === 'Fenrir' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "text-zinc-500 hover:text-white")}
-                >
-                  👨🏻 Masculina
-                </button>
-              </div>
-
-              {/* Language Switch */}
-              <div className="flex items-center justify-center gap-3 bg-zinc-900/50 p-2 rounded-3xl backdrop-blur-sm border border-zinc-800/50">
-                <span className="text-xs font-bold text-zinc-400">{fromLang}</span>
-                <button 
-                  onClick={() => {
-                    setFromLang(fromLang === 'English' ? 'Spanish' : 'English');
-                    setToLang(toLang === 'English' ? 'Spanish' : 'English');
-                  }}
-                  className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-all hover:bg-zinc-700"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                </button>
-                <span className="text-xs font-bold text-zinc-400">{toLang}</span>
-              </div>
-
-              {/* Input Area */}
-              <div className="flex gap-2">
-                <form onSubmit={handleTextSubmit} className="flex-1">
-                  <input 
-                    type="text"
-                    value={inputText}
-                    onChange={e => setInputText(e.target.value)}
-                    placeholder="Escribe para traducir..."
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all font-medium"
-                  />
-                </form>
-                
-                <button 
-                  onClick={toggleRecording}
-                  className={cn(
-                    "w-12 h-12 flex-shrink-0 rounded-2xl flex items-center justify-center transition-all shadow-xl",
-                    isRecording 
-                      ? "bg-red-500 text-white animate-pulse shadow-red-500/30" 
-                      : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-600/20"
-                  )}
-                >
-                  {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+                  <span className="text-3xl group-hover:scale-110 transition-transform mb-1">🪞</span>
+                  Modo Espejo (Face-to-Face)
                 </button>
 
                 <button 
                   onClick={toggleCall}
-                  className={cn(
-                    "w-12 h-12 flex-shrink-0 rounded-2xl flex items-center justify-center transition-all shadow-xl",
-                    isCallActive ? "bg-red-500 shadow-red-500/20 text-white" : "bg-emerald-500 shadow-emerald-500/20 text-white"
-                  )}
-                  title={isCallActive ? "Finalizar Llamada" : "Iniciar Conteo de Llamada"}
+                  className="w-full bg-zinc-900 hover:bg-zinc-800 py-6 rounded-3xl text-sm font-bold uppercase transition-all flex flex-col items-center gap-3 border border-zinc-700 shadow-xl group text-zinc-300 mt-2"
                 >
-                  <Phone className={cn("w-5 h-5", isCallActive && "rotate-[135deg]")} />
+                  <div className="w-12 h-12 rounded-full bg-zinc-800/80 flex items-center justify-center border border-zinc-700 group-hover:border-emerald-500/50 transition-colors">
+                     <Phone className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
+                  </div>
+                  Modo Llamada Telefónica
                 </button>
-              </div>
-            </div>
-          </>
+             </div>
+          </div>
         )}
 
+        {/* Rest of the original views exactly the same */}
         {activeView === 'history' && (
           <div className="space-y-3">
             <div className="flex justify-between items-center px-2">
@@ -603,7 +654,7 @@ export default function ClientApp() {
 
         {activeView === 'payment' && (
           <div className="space-y-6 animate-in fade-in relative py-4">
-            <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 p-6 rounded-3xl shadow-xl shadow-indigo-600/20 border border-indigo-500/30">
+             <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 p-6 rounded-3xl shadow-xl shadow-indigo-600/20 border border-indigo-500/30">
               <p className="text-xs font-bold text-white/70 uppercase mb-1 tracking-widest">Saldo Activo</p>
               <h3 className="text-2xl font-bold mb-4">{clientName}</h3>
               <div className="flex justify-between items-end">
@@ -616,32 +667,26 @@ export default function ClientApp() {
                 </div>
               </div>
             </div>
-
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-2 mt-8">Precios y Planes Oficiales</h3>
-              
-              <div className="w-full bg-zinc-900 p-5 rounded-3xl border border-zinc-800 flex justify-between items-center group relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl"></div>
+              <div className="w-full bg-zinc-900 p-5 rounded-3xl border border-zinc-800 flex justify-between items-center">
                 <div>
                   <p className="font-bold text-emerald-400 text-lg">Pase Semanal Flash</p>
                   <p className="text-sm text-zinc-300 mt-1">60 Minutos VIP</p>
-                  <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">Traducciones instantáneas sin cortes. Ideal para turistas.</p>
+                  <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">Traducciones instantáneas sin cortes.</p>
                 </div>
                 <span className="text-2xl font-bold text-white">$15<span className="text-sm text-zinc-500">.00</span></span>
               </div>
-              
-              <div className="w-full bg-zinc-900 p-5 rounded-3xl border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.1)] flex justify-between items-center group relative overflow-hidden">
+              <div className="w-full bg-zinc-900 p-5 rounded-3xl border border-indigo-500/30 flex justify-between items-center group relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"></div>
-                <div className="absolute top-0 left-6 bg-indigo-600 text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-b-lg shadow-lg">Más Popular</div>
                 <div className="mt-4 z-10 relative">
                   <p className="font-bold text-indigo-400 text-lg">Plan Profesional</p>
                   <p className="text-sm text-zinc-300 mt-1">300 Minutos Premium</p>
-                  <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">Máxima nitidez IAM. Recomendado para turismo constante y citas de negocios.</p>
+                  <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">Máxima nitidez IAM. Recomendado turismo.</p>
                 </div>
                 <span className="text-2xl font-bold text-white z-10 relative">$45<span className="text-sm text-zinc-500">.00</span></span>
               </div>
             </div>
-
             <div className="bg-amber-500/10 p-5 rounded-3xl border border-amber-500/20 flex gap-4 mt-8">
               <AlertCircle className="w-6 h-6 text-amber-500 shrink-0 mt-1" />
               <div>
@@ -658,52 +703,27 @@ export default function ClientApp() {
         {activeView === 'help' && (
           <div className="space-y-4 animate-in fade-in py-2 pb-6">
             <h3 className="text-xl font-bold text-white mb-6">Guía de Uso</h3>
-            
             <div className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-full blur-xl"></div>
               <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2">
                 <span className="bg-blue-500/20 w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span> 
                 Modo Altavoz (Llamadas)
               </h4>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Para traducir llamadas telefónicas tradicionales o de WhatsApp: <strong>Pon tu teléfono en Alta Voz</strong>. Abre esta aplicación y presiona el ícono del micrófono. La aplicación escuchará ambas voces desde el exterior y traducirá la conversación en tiempo real.
+                Para traducir llamadas telefónicas tradicionales o de WhatsApp: <strong>Pon tu teléfono en Alta Voz</strong>. Abre esta aplicación y usa la Herramienta "Llamada Telefónica Activa". Presiona el micrófono del idioma que esté hablando la persona.
               </p>
             </div>
-
             <div className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-full blur-xl"></div>
               <h4 className="font-bold text-purple-400 mb-2 flex items-center gap-2">
                 <span className="bg-purple-500/20 w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span> 
                 Modo Espejo (En Persona)
               </h4>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Diseñado para recepción, taxis o charlas frente a frente. <strong>Presiona el botón de "🪞 Modo Espejo"</strong> en la pestaña Chat. Pon el teléfono en el centro de la mesa; la pantalla se dividirá y la traducción de tu cliente rotará 180 grados para que él pueda leer de cabeza.
+                Diseñado para charla frente a frente. <strong>Presiona la herramienta "Modo Espejo"</strong>. La pantalla se dividirá a la mitad proporcionando dos micrófonos grandes interactivos.
               </p>
-            </div>
-
-            <div className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl"></div>
-              <h4 className="font-bold text-emerald-400 mb-2 flex items-center gap-2">
-                <span className="bg-emerald-500/20 w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span> 
-                Guardar Evidencia (.TXT)
-              </h4>
-              <p className="text-sm text-zinc-400 leading-relaxed">
-                Si requieres dejar una bitácora médica o un acta de reunión, visita la pestaña <strong>Historial</strong> y haz clic en "📥 Exportar .TXT". Esto descargará a tu teléfono un resumen con todas las traducciones.
-              </p>
-            </div>
-
-            <div className="bg-amber-500/10 p-5 rounded-3xl border border-amber-500/20 mt-6 flex gap-3">
-              <HelpCircle className="w-6 h-6 text-amber-500 shrink-0" />
-              <div>
-                <p className="text-sm font-bold text-amber-500 mb-1">Dudas Frecuentes</p>
-                <p className="text-xs text-amber-200/80 leading-relaxed">
-                  • <strong>¿Por qué se pausó?</strong> El micrófono necesita acceso a internet fluido para pensar. Verifica tu WiFi o 4G.<br/><br/>
-                  • <strong>¿Qué son los minutos VIP?</strong> Son minutos sin anuncios con el motor de Inteligencia Artificial (IAM) de máxima velocidad. 
-                </p>
-              </div>
             </div>
           </div>
         )}
+
       </main>
 
       {/* Footer */}
