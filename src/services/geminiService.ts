@@ -10,4 +10,10 @@ export async function translateText(text: string, from: string, to: string) {
   return response.text?.trim() || "";
 }
 
-
+export async function explainGrammar(textLine: string) {
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `You are an expert English tutor. The user translated the following phrase to English: "${textLine}". Brielfy explain (in Spanish) the grammar rule used here so the user can learn from it. Keep the explanation under 3 sentences. Be encouraging.`,
+  });
+  return response.text?.trim() || "Explicación no disponible en este momento.";
+}

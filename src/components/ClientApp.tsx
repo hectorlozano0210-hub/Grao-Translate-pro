@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Phone, Mic, MicOff, Globe, User, MessageCircle, AlertCircle, LogOut, RefreshCw, History, CreditCard, Send, HelpCircle, X } from 'lucide-react';
+import { Phone, Mic, MicOff, Globe, User, MessageCircle, AlertCircle, LogOut, RefreshCw, History, CreditCard, Send, HelpCircle, X, GraduationCap, Play } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
-import { translateText } from '../services/geminiService';
+import { translateText, explainGrammar } from '../services/geminiService';
 import { cn } from '../lib/utils';
 import { getDeviceId } from "../utils/device";
 
@@ -53,7 +53,7 @@ export default function ClientApp() {
   const [recordingLang, setRecordingLang] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [callHistory, setCallHistory] = useState<CallRecord[]>([]);
-  const [activeView, setActiveView] = useState<'chat' | 'history' | 'payment' | 'help'>('chat');
+  const [activeView, setActiveView] = useState<'chat' | 'history' | 'payment' | 'help' | 'academy'>('chat');
   
   const [fromLang, setFromLang] = useState('Spanish');
   const [toLang, setToLang] = useState('English');
@@ -298,6 +298,99 @@ export default function ClientApp() {
   const myLastMsg = [...messages].reverse().find(m => m.sender === 'me');
   const otherLastMsg = [...messages].reverse().find(m => m.sender === 'other');
 
+  // Grao Academy Component Local Logic
+  const renderAcademyFlashcards = () => {
+    const learningMessages = messages.filter(m => m.sender === 'me');
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isFlipped, setIsFlipped] = useState(false);
+    const [grammarExplanation, setGrammarExplanation] = useState<string | null>(null);
+    const [isLoadingGrammar, setIsLoadingGrammar] = useState(false);
+
+    if (learningMessages.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 text-zinc-500 h-full">
+           <GraduationCap className="w-16 h-16 mb-4 opacity-20" />
+           <p className="text-center text-sm">Primero usa el traductor en una llamada o cara a cara para generar historial y aprender de tus propias frases.</p>
+        </div>
+      );
+    }
+
+    const currentMsg = learningMessages[currentIndex];
+
+    if (!currentMsg) return null;
+
+    const handleNext = () => {
+       setIsFlipped(false);
+       setGrammarExplanation(null);
+       setCurrentIndex((prev) => (prev + 1) % learningMessages.length);
+    }
+
+    const fetchGrammar = async () => {
+      setIsLoadingGrammar(true);
+      const explanation = await explainGrammar(currentMsg.translation);
+      setGrammarExplanation(explanation);
+      setIsLoadingGrammar(false);
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center py-8 h-full w-full">
+           <p className="text-emerald-400 font-bold mb-8 uppercase tracking-widest text-xs flex items-center gap-2">
+              <GraduationCap className="w-4 h-4" /> Grao Academy
+           </p>
+
+           <div className="relative w-full max-w-sm h-72 cursor-pointer" style={{ perspective: '1000px' }}>
+             <div 
+                className={cn("w-full h-full shadow-2xl transition-all duration-700 relative")} 
+                style={{ transformStyle: 'preserve-3d', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+                onClick={() => setIsFlipped(!isFlipped)}
+             >
+                
+                {/* Front (Spanish) */}
+                <div className="absolute inset-0 bg-zinc-800 rounded-[2.5rem] border border-zinc-700 flex flex-col items-center justify-center p-6 text-center shadow-[0_0_50px_rgba(0,0,0,0.5)]" style={{ backfaceVisibility: 'hidden' }}>
+                    <span className="absolute top-6 right-6 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Tarjeta {currentIndex + 1}/{learningMessages.length}</span>
+                    <p className="text-2xl font-bold text-white mb-4 leading-tight">"{currentMsg.text}"</p>
+                    <p className="text-[10px] uppercase text-indigo-400 font-bold mt-8 flex items-center gap-1.5 opacity-80"><RefreshCw className="w-3 h-3" /> Toca para revelar en Inglés</p>
+                </div>
+
+                {/* Back (English) */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2.5rem] border border-indigo-500 flex flex-col items-center justify-center p-6 text-center shadow-[0_0_50px_rgba(79,70,229,0.3)]" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                    <p className="text-2xl sm:text-3xl font-bold text-white mb-4 leading-tight">"{currentMsg.translation}"</p>
+                    
+                    <div className="flex gap-4 mt-8 items-center" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                         onClick={() => speakText(currentMsg.translation, 'English', 'Kore')}
+                         className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition shadow-lg shrink-0"
+                      >
+                         <Play className="w-5 h-5 text-white ml-0.5" />
+                      </button>
+                      {!grammarExplanation && (
+                        <button onClick={fetchGrammar} disabled={isLoadingGrammar} className="text-[10px] uppercase tracking-wider bg-white text-indigo-600 px-5 py-3.5 rounded-2xl font-bold hover:bg-zinc-100 transition shadow-lg shrink-0">
+                           {isLoadingGrammar ? 'Buscando...' : '💡 Explicar Gramática'}
+                        </button>
+                      )}
+                    </div>
+                </div>
+
+             </div>
+           </div>
+
+           {grammarExplanation && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 bg-zinc-900 border border-zinc-800 p-5 rounded-3xl w-full max-w-sm relative overflow-hidden">
+                 <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl"></div>
+                 <p className="text-amber-500 text-[10px] font-bold uppercase mb-3 flex items-center gap-1.5"><AlertCircle className="w-3 h-3"/> Tutor IA Dice:</p>
+                 <p className="text-xs text-zinc-300 leading-relaxed z-10 relative">{grammarExplanation}</p>
+              </motion.div>
+           )}
+
+           <div className="mt-8 flex gap-4 w-full max-w-sm px-4">
+               <button onClick={handleNext} className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white w-full py-4 rounded-2xl font-bold transition uppercase text-[10px] tracking-widest shadow-lg">
+                  Siguiente Frase
+               </button>
+           </div>
+      </div>
+    )
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 font-sans text-white">
@@ -373,7 +466,7 @@ export default function ClientApp() {
             <div className="flex-1 flex flex-col items-center justify-center p-8 bg-zinc-900 border-b-2 border-indigo-500/50 relative rotate-180">
               <span className="absolute top-4 left-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{toLang}</span>
               <div className="max-w-2xl w-full text-center mb-16 px-4">
-                   <p className="text-3xl sm:text-4xl font-bold text-white leading-tight">
+                   <p className="text-3xl sm:text-4xl font-bold text-white leading-tight" style={{textWrap: "balance"}}>
                      {otherLastMsg ? otherLastMsg.translation : "..."}
                    </p>
               </div>
@@ -400,7 +493,7 @@ export default function ClientApp() {
               </button>
 
               <div className="max-w-2xl w-full text-center mb-16 px-4">
-                   <p className="text-3xl sm:text-4xl font-bold text-white leading-tight">
+                   <p className="text-3xl sm:text-4xl font-bold text-white leading-tight" style={{textWrap: "balance"}}>
                      {myLastMsg ? myLastMsg.translation : "..."}
                    </p>
               </div>
@@ -445,7 +538,7 @@ export default function ClientApp() {
                <div className="bg-zinc-900/80 p-5 rounded-3xl min-h-[120px] flex flex-col items-center justify-center text-center border border-zinc-800 shadow-inner overflow-hidden relative">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl"></div>
                  <p className="text-zinc-500 text-[10px] font-bold mb-2 uppercase tracking-wide">Último Mensaje Traducido</p>
-                 <p className="text-white text-base sm:text-lg font-medium leading-relaxed z-10">"{messages[messages.length-1]?.translation || 'Esperando voz...'}"</p>
+                 <p className="text-white text-base sm:text-lg font-medium leading-relaxed z-10" style={{textWrap: "balance"}}>"{messages[messages.length-1]?.translation || 'Esperando voz...'}"</p>
                </div>
                
                <div className="flex gap-3">
@@ -518,29 +611,35 @@ export default function ClientApp() {
         </div>
       </header>
 
-      {/* Navigation Tabs */}
-      <div className="flex bg-zinc-900/50 p-1 mx-4 mt-4 rounded-2xl border border-zinc-800 shadow-sm overflow-x-auto hide-scrollbar">
+      {/* Navigation Tabs - Updated for scrollability to fit 5 items */}
+      <div className="flex bg-zinc-900/50 p-1 mx-4 mt-4 rounded-2xl border border-zinc-800 shadow-sm overflow-x-auto hide-scrollbar gap-1">
         <button 
           onClick={() => setActiveView('chat')}
-          className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'chat' ? "bg-zinc-800 text-white" : "text-zinc-500")}
+          className={cn("flex-[1_0_auto] py-2 px-3 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1", activeView === 'chat' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
           <MessageCircle className="w-4 h-4" /> Inicio
         </button>
         <button 
+          onClick={() => setActiveView('academy')}
+          className={cn("flex-[1_0_auto] py-2 px-3 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1", activeView === 'academy' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-zinc-500")}
+        >
+          <GraduationCap className="w-4 h-4" /> Academia
+        </button>
+        <button 
           onClick={() => setActiveView('history')}
-          className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'history' ? "bg-zinc-800 text-white" : "text-zinc-500")}
+          className={cn("flex-[1_0_auto] py-2 px-3 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1", activeView === 'history' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
           <History className="w-4 h-4" /> Historico
         </button>
         <button 
           onClick={() => setActiveView('payment')}
-          className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'payment' ? "bg-zinc-800 text-white" : "text-zinc-500")}
+          className={cn("flex-[1_0_auto] py-2 px-3 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1", activeView === 'payment' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
           <CreditCard className="w-4 h-4" /> Recargas
         </button>
         <button 
           onClick={() => setActiveView('help')}
-          className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'help' ? "bg-zinc-800 text-white" : "text-zinc-500")}
+          className={cn("flex-[1_0_auto] py-2 px-3 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1", activeView === 'help' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
           <HelpCircle className="w-4 h-4" /> Ayuda
         </button>
@@ -548,6 +647,9 @@ export default function ClientApp() {
 
       {/* Main View */}
       <main className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        
+        {activeView === 'academy' && React.createElement(renderAcademyFlashcards)}
+
         {activeView === 'chat' && (
           <div className="flex-1 flex flex-col h-full bg-zinc-900/30 rounded-3xl border border-zinc-800/50 p-6 relative justify-center items-center overflow-hidden">
              
