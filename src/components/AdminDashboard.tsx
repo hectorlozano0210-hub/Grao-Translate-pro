@@ -192,10 +192,10 @@ export default function AdminDashboard() {
       {/* Sidebar */}
       <div className="fixed left-0 top-0 bottom-0 w-64 bg-zinc-900 text-white p-6 flex flex-col">
         <div className="mb-10 text-center">
-          <div className="w-24 h-24 mx-auto bg-zinc-800 rounded-2xl overflow-hidden mb-4 shadow-xl border border-zinc-700">
-            <img src="/logo.jpg" alt="Grao Translate Pro" className="w-full h-full object-cover" />
+          <div className="w-40 h-40 mx-auto bg-zinc-800 rounded-[2rem] overflow-hidden mb-6 shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-zinc-700">
+            <img src="/logo.jpg" alt="Grao Translate Pro" className="w-full h-full object-cover scale-110 hover:scale-100 transition-transform duration-500" />
           </div>
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest border-t border-zinc-800/50 pt-3">Ecosystem Master FixPc</p>
+          <p className="text-[10px] text-zinc-500 uppercase tracking-widest border-t border-zinc-800/50 pt-4">Ecosystem Master FixPc</p>
         </div>
 
         <nav className="flex-1 space-y-2">

@@ -12,9 +12,8 @@ export default function App() {
         <Route path="/app" element={<ClientApp />} />
         <Route path="/" element={
           <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-white font-sans relative overflow-hidden">
-            {/* Logo y Titular */}
             <div className="flex flex-col items-center justify-center mb-10 z-10">
-              <div className="w-40 h-40 bg-zinc-900 rounded-3xl flex items-center justify-center mb-6 shadow-2xl shadow-black/50 border border-zinc-800 overflow-hidden">
+              <div className="w-56 h-56 bg-zinc-900 rounded-3xl flex items-center justify-center mb-8 shadow-[0_0_30px_rgba(0,0,0,0.8)] border border-zinc-800 overflow-hidden">
                 <img src="/logo.jpg" alt="Grao Translate Pro Logo" className="w-full h-full object-cover" />
               </div>
               <h1 className="text-3xl md:text-4xl font-bold mb-3 bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">

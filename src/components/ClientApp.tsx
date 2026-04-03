@@ -298,9 +298,9 @@ export default function ClientApp() {
           <button onClick={() => window.location.href = '/'} className="absolute top-6 left-6 text-zinc-500 hover:text-white flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest transition-colors z-10">
             <LogOut className="w-3 h-3 rotate-180" /> Inicio
           </button>
-          <div className="flex justify-center mb-6 mt-4">
-            <div className="w-24 h-24 bg-zinc-800 rounded-3xl flex items-center justify-center shadow-xl shadow-black/40 overflow-hidden border border-zinc-700">
-              <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover" />
+          <div className="flex justify-center mb-8 mt-2">
+            <div className="w-32 h-32 bg-zinc-800 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-black/60 overflow-hidden border border-zinc-700">
+              <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover scale-110" />
             </div>
           </div>
           <h1 className="text-2xl font-bold text-center mb-1">Activa tu Equipo</h1>
@@ -358,12 +358,12 @@ export default function ClientApp() {
     <div className="min-h-screen bg-zinc-950 text-white font-sans flex flex-col">
       {/* Header */}
       <header className="p-4 flex justify-between items-center border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <button onClick={() => window.location.href = '/'} className="mr-2 text-zinc-500 hover:text-white transition-colors" title="Inicio">
+        <div className="flex items-center gap-4">
+          <button onClick={() => window.location.href = '/'} className="mr-1 text-zinc-500 hover:text-white transition-colors" title="Inicio">
             <LogOut className="w-5 h-5 rotate-180" />
           </button>
-          <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center border border-zinc-700 overflow-hidden">
-             <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover" />
+          <div className="w-14 h-14 bg-zinc-800 rounded-2xl flex items-center justify-center border border-zinc-700 overflow-hidden shadow-lg">
+             <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover scale-110" />
           </div>
           <div>
             <h2 className="font-bold text-sm">{clientName}</h2>
