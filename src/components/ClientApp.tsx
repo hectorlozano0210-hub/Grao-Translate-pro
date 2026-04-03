@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Phone, Mic, MicOff, Globe, User, MessageCircle, AlertCircle, LogOut, RefreshCw, History, CreditCard, Send } from 'lucide-react';
+import { Phone, Mic, MicOff, Globe, User, MessageCircle, AlertCircle, LogOut, RefreshCw, History, CreditCard, Send, HelpCircle } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
 import { translateText, generateSpeech } from '../services/geminiService';
@@ -35,7 +35,7 @@ export default function ClientApp() {
   const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [callHistory, setCallHistory] = useState<CallRecord[]>([]);
-  const [activeView, setActiveView] = useState<'chat' | 'history' | 'payment'>('chat');
+  const [activeView, setActiveView] = useState<'chat' | 'history' | 'payment' | 'help'>('chat');
   
   const [fromLang, setFromLang] = useState('English');
   const [toLang, setToLang] = useState('Spanish');
@@ -410,24 +410,30 @@ export default function ClientApp() {
       </header>
 
       {/* Navigation Tabs */}
-      <div className="flex bg-zinc-900/50 p-1 mx-4 mt-4 rounded-2xl border border-zinc-800">
+      <div className="flex bg-zinc-900/50 p-1 mx-4 mt-4 rounded-2xl border border-zinc-800 shadow-sm overflow-x-auto hide-scrollbar">
         <button 
           onClick={() => setActiveView('chat')}
-          className={cn("flex-1 py-2 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2", activeView === 'chat' ? "bg-zinc-800 text-white" : "text-zinc-500")}
+          className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'chat' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
-          <MessageCircle className="w-3 h-3" /> Chat
+          <MessageCircle className="w-4 h-4" /> Chat
         </button>
         <button 
           onClick={() => setActiveView('history')}
-          className={cn("flex-1 py-2 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2", activeView === 'history' ? "bg-zinc-800 text-white" : "text-zinc-500")}
+          className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'history' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
-          <History className="w-3 h-3" /> Historial
+          <History className="w-4 h-4" /> Historial
         </button>
         <button 
           onClick={() => setActiveView('payment')}
-          className={cn("flex-1 py-2 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2", activeView === 'payment' ? "bg-zinc-800 text-white" : "text-zinc-500")}
+          className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'payment' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
-          <CreditCard className="w-3 h-3" /> Recarga
+          <CreditCard className="w-4 h-4" /> Recarga
+        </button>
+        <button 
+          onClick={() => setActiveView('help')}
+          className={cn("flex-1 py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 min-w-[70px]", activeView === 'help' ? "bg-zinc-800 text-white" : "text-zinc-500")}
+        >
+          <HelpCircle className="w-4 h-4" /> Ayuda
         </button>
       </div>
 
@@ -643,6 +649,56 @@ export default function ClientApp() {
                 <p className="text-xs text-amber-200/80 leading-relaxed">
                   Para adquirir alguno de estos planes, debes enviar un mensaje al administrador oficial (<strong>Master FixPc</strong>) adjuntado tu Pantalla ID única:<br/><br/>
                   <span className="font-mono bg-black/40 text-white px-3 py-1.5 rounded-lg border border-white/5 shadow-inner tracking-widest block text-center select-all">{deviceId}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'help' && (
+          <div className="space-y-4 animate-in fade-in py-2 pb-6">
+            <h3 className="text-xl font-bold text-white mb-6">Guía de Uso</h3>
+            
+            <div className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800 shadow-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-full blur-xl"></div>
+              <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2">
+                <span className="bg-blue-500/20 w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span> 
+                Modo Altavoz (Llamadas)
+              </h4>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Para traducir llamadas telefónicas tradicionales o de WhatsApp: <strong>Pon tu teléfono en Alta Voz</strong>. Abre esta aplicación y presiona el ícono del micrófono. La aplicación escuchará ambas voces desde el exterior y traducirá la conversación en tiempo real.
+              </p>
+            </div>
+
+            <div className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800 shadow-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-full blur-xl"></div>
+              <h4 className="font-bold text-purple-400 mb-2 flex items-center gap-2">
+                <span className="bg-purple-500/20 w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span> 
+                Modo Espejo (En Persona)
+              </h4>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Diseñado para recepción, taxis o charlas frente a frente. <strong>Presiona el botón de "🪞 Modo Espejo"</strong> en la pestaña Chat. Pon el teléfono en el centro de la mesa; la pantalla se dividirá y la traducción de tu cliente rotará 180 grados para que él pueda leer de cabeza.
+              </p>
+            </div>
+
+            <div className="bg-zinc-900 rounded-3xl p-5 border border-zinc-800 shadow-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl"></div>
+              <h4 className="font-bold text-emerald-400 mb-2 flex items-center gap-2">
+                <span className="bg-emerald-500/20 w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span> 
+                Guardar Evidencia (.TXT)
+              </h4>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Si requieres dejar una bitácora médica o un acta de reunión, visita la pestaña <strong>Historial</strong> y haz clic en "📥 Exportar .TXT". Esto descargará a tu teléfono un resumen con todas las traducciones.
+              </p>
+            </div>
+
+            <div className="bg-amber-500/10 p-5 rounded-3xl border border-amber-500/20 mt-6 flex gap-3">
+              <HelpCircle className="w-6 h-6 text-amber-500 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-amber-500 mb-1">Dudas Frecuentes</p>
+                <p className="text-xs text-amber-200/80 leading-relaxed">
+                  • <strong>¿Por qué se pausó?</strong> El micrófono necesita acceso a internet fluido para pensar. Verifica tu WiFi o 4G.<br/><br/>
+                  • <strong>¿Qué son los minutos VIP?</strong> Son minutos sin anuncios con el motor de Inteligencia Artificial (IAM) de máxima velocidad. 
                 </p>
               </div>
             </div>
