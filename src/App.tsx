@@ -11,16 +11,22 @@ export default function App() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/app" element={<ClientApp />} />
         <Route path="/" element={
-          <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-white font-sans">
-            <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-indigo-500/20">
-              <Smartphone className="w-10 h-10" />
+          <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-white font-sans relative overflow-hidden">
+            {/* Logo y Titular */}
+            <div className="flex flex-col items-center justify-center mb-10 z-10">
+              <div className="w-40 h-40 bg-zinc-900 rounded-3xl flex items-center justify-center mb-6 shadow-2xl shadow-black/50 border border-zinc-800 overflow-hidden">
+                <img src="/logo.jpg" alt="Grao Translate Pro Logo" className="w-full h-full object-cover" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-3 bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+                Bienvenido al Sistema
+              </h1>
+              <p className="text-zinc-500 text-center max-w-md text-sm md:text-base">
+                Sistema profesional de traducción en tiempo real con Inteligencia Artificial.
+              </p>
             </div>
-            <h1 className="text-4xl font-bold mb-2">Grao Translate Pro</h1>
-            <p className="text-zinc-500 mb-12 text-center max-w-md">
-              Sistema profesional de traducción en tiempo real para llamadas telefónicas.
-            </p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+            {/* Opciones */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl z-10">
               <Link 
                 to="/app" 
                 className="group p-8 bg-zinc-900 rounded-3xl border border-zinc-800 hover:border-indigo-500/50 transition-all hover:bg-zinc-800/50"

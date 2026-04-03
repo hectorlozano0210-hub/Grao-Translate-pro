@@ -98,9 +98,11 @@ export default function AdminDashboard() {
         return;
       }
 
-      setDevices(await devRes.json());
+      const devData = await devRes.json();
+      setDevices(Array.isArray(devData) ? devData : []);
       setStats(await statsRes.json());
-      setPayments(await payRes.json());
+      const payData = await payRes.json();
+      setPayments(Array.isArray(payData) ? payData : []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -189,9 +191,11 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#f8f9fa] font-sans">
       {/* Sidebar */}
       <div className="fixed left-0 top-0 bottom-0 w-64 bg-zinc-900 text-white p-6 flex flex-col">
-        <div className="mb-12">
-          <h1 className="text-xl font-bold">Grao Translate Pro</h1>
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Ecosystem Master FixPc</p>
+        <div className="mb-10 text-center">
+          <div className="w-24 h-24 mx-auto bg-zinc-800 rounded-2xl overflow-hidden mb-4 shadow-xl border border-zinc-700">
+            <img src="/logo.jpg" alt="Grao Translate Pro" className="w-full h-full object-cover" />
+          </div>
+          <p className="text-[10px] text-zinc-500 uppercase tracking-widest border-t border-zinc-800/50 pt-3">Ecosystem Master FixPc</p>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -228,6 +232,13 @@ export default function AdminDashboard() {
         </nav>
 
         <div className="mt-auto space-y-2">
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-zinc-800/50 text-white hover:bg-zinc-800 rounded-xl transition-all font-bold"
+          >
+            <LogOut className="w-5 h-5 rotate-180" />
+            <span>Volver a Inicio</span>
+          </button>
           <button 
             onClick={() => window.location.href = '/app'}
             className="w-full flex items-center gap-3 px-4 py-3 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 rounded-xl transition-all font-bold"

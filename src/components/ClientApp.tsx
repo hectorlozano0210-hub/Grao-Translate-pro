@@ -44,6 +44,7 @@ export default function ClientApp() {
   const [error, setError] = useState<string | null>(null);
   const [inputText, setInputText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [isMirrorMode, setIsMirrorMode] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -292,14 +293,17 @@ export default function ClientApp() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-800 shadow-2xl"
+          className="w-full max-w-md bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-800 shadow-2xl relative"
         >
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Globe className="w-10 h-10 text-white" />
+          <button onClick={() => window.location.href = '/'} className="absolute top-6 left-6 text-zinc-500 hover:text-white flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest transition-colors z-10">
+            <LogOut className="w-3 h-3 rotate-180" /> Inicio
+          </button>
+          <div className="flex justify-center mb-6 mt-4">
+            <div className="w-24 h-24 bg-zinc-800 rounded-3xl flex items-center justify-center shadow-xl shadow-black/40 overflow-hidden border border-zinc-700">
+              <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-center mb-1">Grao Translate Pro</h1>
+          <h1 className="text-2xl font-bold text-center mb-1">Activa tu Equipo</h1>
           <p className="text-[10px] text-zinc-500 uppercase tracking-widest text-center mb-8">Ecosystem Master FixPc</p>
           
           <div className="space-y-4">
@@ -355,8 +359,11 @@ export default function ClientApp() {
       {/* Header */}
       <header className="p-4 flex justify-between items-center border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center border border-zinc-700">
-            <User className="w-5 h-5 text-zinc-400" />
+          <button onClick={() => window.location.href = '/'} className="mr-2 text-zinc-500 hover:text-white transition-colors" title="Inicio">
+            <LogOut className="w-5 h-5 rotate-180" />
+          </button>
+          <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center border border-zinc-700 overflow-hidden">
+             <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover" />
           </div>
           <div>
             <h2 className="font-bold text-sm">{clientName}</h2>
@@ -423,10 +430,10 @@ export default function ClientApp() {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     className={cn(
-                      "max-w-[85%] p-3 rounded-2xl shadow-sm relative",
+                      "p-3 rounded-2xl shadow-sm relative transition-all duration-500",
                       msg.sender === 'me' 
-                        ? "bg-indigo-600 self-end rounded-tr-none" 
-                        : "bg-zinc-800 self-start rounded-tl-none"
+                        ? "bg-indigo-600 self-end rounded-tr-none max-w-[85%]" 
+                        : cn("bg-zinc-800 self-start rounded-tl-none max-w-[85%]", isMirrorMode && "rotate-180 self-center w-[90%] max-w-full my-8 shadow-xl shadow-black/50 border border-zinc-700")
                     )}
                   >
                     <p className="text-xs opacity-60 font-bold uppercase mb-1">
@@ -455,6 +462,15 @@ export default function ClientApp() {
             {/* Controls */}
             <div className="sticky bottom-4 space-y-4">
               
+              <div className="flex justify-center -mb-2">
+                <button 
+                  onClick={() => setIsMirrorMode(!isMirrorMode)} 
+                  className={cn("px-4 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all flex items-center gap-2 border", isMirrorMode ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/30" : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white")}
+                >
+                  🪞 Modo Espejo (Face-to-Face)
+                </button>
+              </div>
+
               {/* Voice Selector */}
               <div className="flex bg-zinc-900 p-1 mx-8 rounded-full border border-zinc-800 shadow-lg">
                 <button 
@@ -529,7 +545,23 @@ export default function ClientApp() {
 
         {activeView === 'history' && (
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-2">Últimas Llamadas</h3>
+            <div className="flex justify-between items-center px-2">
+              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Últimas Llamadas</h3>
+              <button 
+                onClick={() => {
+                  if (callHistory.length === 0) return alert("No hay historial para exportar.");
+                  const text = "Historial de Traducciones GRAO AI\n\n" + callHistory.map(c => `Fecha: ${new Date(c.created_at).toLocaleString()}\nIdiomas: ${c.from_lang} a ${c.to_lang}\nDuración: ${c.duration_minutes.toFixed(1)} mins\n------------------------`).join("\n");
+                  const blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url; a.download = 'Historial_Traducciones_GRAO.txt';
+                  a.click();
+                }}
+                className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded-full font-bold transition-all flex items-center gap-1.5 shadow-lg border border-zinc-700"
+              >
+                📥 Exportar .TXT
+              </button>
+            </div>
             {callHistory.map((call) => (
               <div key={call.id} className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 flex justify-between items-center">
                 <div>
@@ -551,44 +583,55 @@ export default function ClientApp() {
         )}
 
         {activeView === 'payment' && (
-          <div className="space-y-6">
-            <div className="bg-indigo-600 p-6 rounded-3xl shadow-xl shadow-indigo-600/20">
-              <p className="text-xs font-bold text-white/60 uppercase mb-1">Mi Ecosistema</p>
-              <h3 className="text-2xl font-bold mb-4">Master FixPc</h3>
+          <div className="space-y-6 animate-in fade-in relative py-4">
+            <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 p-6 rounded-3xl shadow-xl shadow-indigo-600/20 border border-indigo-500/30">
+              <p className="text-xs font-bold text-white/70 uppercase mb-1 tracking-widest">Saldo Activo</p>
+              <h3 className="text-2xl font-bold mb-4">{clientName}</h3>
               <div className="flex justify-between items-end">
                 <div>
-                  <p className="text-[10px] text-white/60 uppercase font-bold">Saldo Actual</p>
+                  <p className="text-[10px] text-white/60 uppercase font-bold">Minutos VIP Restantes</p>
                   <p className="text-3xl font-mono font-bold">{remainingMinutes.toFixed(1)}m</p>
                 </div>
-                <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-bold uppercase">
+                <div className="bg-white/10 px-3 py-1 rounded-full text-[10px] font-bold uppercase backdrop-blur-md border border-white/10">
                   Plan {remainingMinutes > 0 ? 'Activo' : 'Vencido'}
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-2">Planes Disponibles</h3>
-              <button className="w-full bg-zinc-900 p-5 rounded-3xl border border-zinc-800 hover:border-indigo-500/50 transition-all text-left flex justify-between items-center group">
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-2 mt-8">Precios y Planes Oficiales</h3>
+              
+              <div className="w-full bg-zinc-900 p-5 rounded-3xl border border-zinc-800 flex justify-between items-center group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl"></div>
                 <div>
-                  <p className="font-bold">Plan Semanal</p>
-                  <p className="text-xs text-zinc-500">60 Minutos de traducción</p>
+                  <p className="font-bold text-emerald-400 text-lg">Pase Semanal Flash</p>
+                  <p className="text-sm text-zinc-300 mt-1">60 Minutos VIP</p>
+                  <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">Traducciones instantáneas sin cortes. Ideal para turistas.</p>
                 </div>
-                <span className="text-indigo-400 font-bold group-hover:translate-x-1 transition-transform">$15.00</span>
-              </button>
-              <button className="w-full bg-zinc-900 p-5 rounded-3xl border border-zinc-800 hover:border-indigo-500/50 transition-all text-left flex justify-between items-center group">
-                <div>
-                  <p className="font-bold">Plan Mensual</p>
-                  <p className="text-xs text-zinc-500">300 Minutos de traducción</p>
+                <span className="text-2xl font-bold text-white">$15<span className="text-sm text-zinc-500">.00</span></span>
+              </div>
+              
+              <div className="w-full bg-zinc-900 p-5 rounded-3xl border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.1)] flex justify-between items-center group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"></div>
+                <div className="absolute top-0 left-6 bg-indigo-600 text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-b-lg shadow-lg">Más Popular</div>
+                <div className="mt-4 z-10 relative">
+                  <p className="font-bold text-indigo-400 text-lg">Plan Profesional</p>
+                  <p className="text-sm text-zinc-300 mt-1">300 Minutos Premium</p>
+                  <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">Máxima nitidez IAM. Recomendado para turismo constante y citas de negocios.</p>
                 </div>
-                <span className="text-indigo-400 font-bold group-hover:translate-x-1 transition-transform">$45.00</span>
-              </button>
+                <span className="text-2xl font-bold text-white z-10 relative">$45<span className="text-sm text-zinc-500">.00</span></span>
+              </div>
             </div>
 
-            <div className="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20 flex gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-              <p className="text-xs text-amber-200/80 leading-relaxed">
-                Para recargas manuales o soporte técnico, contacta directamente a <strong>Hector Lozano Design</strong> vía WhatsApp.
-              </p>
+            <div className="bg-amber-500/10 p-5 rounded-3xl border border-amber-500/20 flex gap-4 mt-8">
+              <AlertCircle className="w-6 h-6 text-amber-500 shrink-0 mt-1" />
+              <div>
+                <p className="text-sm font-bold text-amber-500 mb-2">¿Cómo recargar tu equipo?</p>
+                <p className="text-xs text-amber-200/80 leading-relaxed">
+                  Para adquirir alguno de estos planes, debes enviar un mensaje al administrador oficial (<strong>Master FixPc</strong>) adjuntado tu Pantalla ID única:<br/><br/>
+                  <span className="font-mono bg-black/40 text-white px-3 py-1.5 rounded-lg border border-white/5 shadow-inner tracking-widest block text-center select-all">{deviceId}</span>
+                </p>
+              </div>
             </div>
           </div>
         )}
