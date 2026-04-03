@@ -473,12 +473,12 @@ export default function ClientApp() {
             </div>
 
             {/* Controls */}
-            <div className="sticky bottom-4 space-y-4">
+            <div className="sticky bottom-4 space-y-4 pb-2">
               
-              <div className="flex justify-center -mb-2">
+              <div className="flex justify-center mb-5 mt-2">
                 <button 
                   onClick={() => setIsMirrorMode(!isMirrorMode)} 
-                  className={cn("px-4 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all flex items-center gap-2 border", isMirrorMode ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/30" : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white")}
+                  className={cn("px-4 py-2 rounded-full text-xs font-bold uppercase transition-all flex items-center gap-2 border shadow-[0_0_15px_rgba(0,0,0,0.5)]", isMirrorMode ? "bg-indigo-600 border-indigo-500 text-white shadow-indigo-600/30" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white")}
                 >
                   🪞 Modo Espejo (Face-to-Face)
                 </button>
