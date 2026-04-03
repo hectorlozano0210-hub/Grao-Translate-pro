@@ -527,6 +527,8 @@ const [devices] = await pool.query(`
 SELECT
 device_id,
 auth_key,
+client_name,
+plan_type,
 status,
 total_minutes,
 remaining_minutes,
