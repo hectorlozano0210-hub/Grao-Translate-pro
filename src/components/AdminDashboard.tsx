@@ -143,6 +143,9 @@ export default function AdminDashboard() {
         }
         setShowActivateModal(false);
         fetchData();
+      } else {
+        const errData = await res.json();
+        alert(errData.error || 'Error en la activación. Verifique que la ID fue escrita correctamente y existe.');
       }
     } catch (err) {
       console.error(err);

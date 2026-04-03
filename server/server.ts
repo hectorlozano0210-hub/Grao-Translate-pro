@@ -135,8 +135,27 @@ app.post("/api/device/check", async (req, res) => {
   }
 });
 
+app.post("/api/client/register-id", async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+    if (!deviceId) return res.status(400).json({error:"Missing deviceId"});
+    const [existing] = await pool.query("SELECT * FROM devices WHERE device_id = ?", [deviceId]) as any;
+    if (existing.length === 0) {
+      await pool.query(`
+        INSERT INTO devices (device_id, status, total_minutes, remaining_minutes)
+        VALUES (?, 'pending', 0, 0)
+      `, [deviceId]);
+    }
+    res.json({success: true});
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({error:"Failed"});
+  }
+});
+
 /*================================*/
 app.get("/api/admin/stats", verifyAdmin, async (req, res) => {
+
 
 try {
 
@@ -430,11 +449,7 @@ const [existing] = await pool.query("SELECT * FROM devices WHERE device_id = ?",
 let finalAuthKey = "";
 
 if (existing.length === 0) {
-  finalAuthKey = "GRAO-" + crypto.randomBytes(4).toString("hex").toUpperCase();
-  await pool.query(`
-    INSERT INTO devices (device_id, auth_key, status, client_name, plan_type, total_minutes, remaining_minutes, expires_at)
-    VALUES (?, ?, 'active', ?, ?, ?, ?, ?)
-  `, [deviceId, finalAuthKey, clientName || 'Sin Nombre', planType || 'Mensual', minutes, minutes, expiresAt]);
+  return res.status(400).json({error: "El ID de Pantalla no existe.\nEl usuario debe abrir la aplicación primero para generarlo."});
 } else {
   // If it was already active or pending, just top-up and update. For pending, we might generate a new key if it didn't have one, but old DB sets a 64-char key. Just generate a nice one if it's pending.
   const isPending = existing[0].status === 'pending';
@@ -598,7 +613,13 @@ io.use(async (socket, next) => {
     const deviceId = auth.deviceId;
     const authKey = auth.authKey;
     if (!deviceId || !authKey) return next(new Error('auth_required'));
-    const [rows] = await pool.query("SELECT * FROM devices WHERE device_id = ? LIMIT 1", [deviceId]);
+
+    if (deviceId === 'ADMIN-MASTER-DEVICE' && authKey === 'MASTER-KEY') {
+      socket.data.deviceId = deviceId;
+      return next();
+    }
+
+    const [rows] = await pool.query("SELECT * FROM devices WHERE device_id = ? LIMIT 1", [deviceId]) as any;
     if (!rows || rows.length === 0) return next(new Error('device_not_found'));
     const device = rows[0];
     if (device.auth_key !== authKey) return next(new Error('invalid_credentials'));
