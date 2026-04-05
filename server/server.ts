@@ -32,6 +32,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "default_super_secret_for_dev_only"
 const allowedOrigins = [
   "https://graotranslate.masterfixpc.com",
   "https://graotranslate.masterfix.com",
+  "https://graotranslatepro.masterfix.com",
+  "https://graotranslatepro.masterfixpc.com",
   "https://graotranslate.masterfixopc", // Just in case from previous message
   "http://localhost:5173",
   "http://localhost:3000"
