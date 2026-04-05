@@ -20,6 +20,13 @@ const GOOGLE_COST_PER_MINUTE = 0.024;
 
 async function startServer() {
 
+  try {
+    // Inicializar columna VIP si no existe
+    await pool.query("ALTER TABLE devices ADD COLUMN is_vip BOOLEAN DEFAULT FALSE");
+  } catch(e) {
+    // La columna ya existe
+  }
+
 const JWT_SECRET = process.env.JWT_SECRET || "default_super_secret_for_dev_only";
 
 const allowedOrigins = [
@@ -437,7 +444,7 @@ app.post('/api/client/auth', authLimiter, async (req, res) => {
 
 app.post("/api/admin/activate-device", verifyAdmin, async(req,res)=>{
 
-const {deviceId, minutes, days, clientName, planType, amount} = req.body;
+const {deviceId, minutes, days, clientName, planType, amount, isVip} = req.body;
 
 try{
 
@@ -463,9 +470,10 @@ if (existing.length === 0) {
     plan_type=?,
     total_minutes=total_minutes+?,
     remaining_minutes=remaining_minutes+?,
-    expires_at=?
+    expires_at=?,
+    is_vip=?
     WHERE device_id=?
-  `, [finalAuthKey, clientName || existing[0].client_name, planType || existing[0].plan_type, minutes, minutes, expiresAt, deviceId]);
+  `, [finalAuthKey, clientName || existing[0].client_name, planType || existing[0].plan_type, minutes, minutes, expiresAt, Boolean(isVip), deviceId]);
 }
 
 if (amount > 0) {
@@ -518,10 +526,10 @@ app.post("/api/admin/setup-master", verifyAdmin, async(req,res)=>{
     const [rows] = await pool.query("SELECT * FROM devices WHERE device_id = ?", [deviceId]) as any;
     
     if (rows.length === 0) {
-      await pool.query(`INSERT INTO devices (device_id, auth_key, status, total_minutes, remaining_minutes, client_name, plan_type) 
-      VALUES (?, ?, 'active', 10, 10, 'Admin Master', 'Ilimitado')`, [deviceId, authKey]);
+      await pool.query(`INSERT INTO devices (device_id, auth_key, status, total_minutes, remaining_minutes, client_name, plan_type, is_vip) 
+      VALUES (?, ?, 'active', 10, 10, 'Admin Master', 'Ilimitado', TRUE)`, [deviceId, authKey]);
     } else {
-      await pool.query(`UPDATE devices SET remaining_minutes = 10, total_minutes = total_minutes + 10 WHERE device_id = ?`, [deviceId]);
+      await pool.query(`UPDATE devices SET remaining_minutes = 10, total_minutes = total_minutes + 10, is_vip = TRUE WHERE device_id = ?`, [deviceId]);
     }
     res.json({ success: true, deviceId, authKey });
   } catch (err) {
@@ -545,6 +553,7 @@ auth_key,
 client_name,
 plan_type,
 status,
+is_vip,
 total_minutes,
 remaining_minutes,
 expires_at,
@@ -719,6 +728,45 @@ io.on('connection', async (socket) => {
     if (deviceSocketMap.get(deviceId) === socket.id) deviceSocketMap.delete(deviceId);
   });
 
+});
+
+app.post('/api/client/vip-auto-detect', async (req, res) => {
+  const { deviceId, authKey, base64Audio, mimeType, currentLang } = req.body;
+  if (!deviceId || !authKey || !base64Audio) return res.status(400).json({error: "Missing params"});
+  
+  try {
+    const [devices] = await pool.query("SELECT * FROM devices WHERE device_id=? AND auth_key=? AND status='active'", [deviceId, authKey]) as any;
+    if (devices.length === 0) return res.status(401).json({error: "Unauthorized"});
+    const device = devices[0];
+    if (device.remaining_minutes <= 0) return res.status(403).json({error: "Sin Minutos"});
+    if (!device.is_vip) return res.status(403).json({error: "Not VIP"});
+
+    // Consume 0.2 minutes (12 seconds) per audio snippet request seamlessly
+    await pool.query("UPDATE devices SET remaining_minutes = GREATEST(0, remaining_minutes - 0.2) WHERE device_id=?", [deviceId]);
+
+    const { GoogleGenAI } = await import("@google/genai");
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+    let fileFormat = mimeType.replace("audio/", "").split(";")[0]; // webm, opus, etc
+    
+    // Fallback to text matching if AI complains about JSON schema but mostly robust prompt:
+    const prompt = `System: Listen to the audio. It is a user speaking in either English or Spanish. Provide the exact transcription of what they said. Then, translate it to the OPPOSITE language context (Spanish to English or English to Spanish). Provide ONLY pure JSON format exactly like: { "detected_lang": "English", "transcription": "Hello", "translation": "Hola" }. No backticks.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview",
+      contents: [
+        { inlineData: { data: base64Audio, mimeType: mimeType } },
+        { text: prompt }
+      ]
+    });
+
+    let resultTxt = response.text || "{}";
+    resultTxt = resultTxt.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "");
+    
+    res.json({ success: true, data: JSON.parse(resultTxt) });
+  } catch(e) {
+    console.error("VIP Audio Detect Failed:", e);
+    res.status(500).json({error: "Audio processing failed"});
+  }
 });
 
 app.get("/test", (req,res)=>{

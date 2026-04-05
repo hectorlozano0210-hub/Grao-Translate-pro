@@ -49,6 +49,8 @@ export default function ClientApp() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [clientName, setClientName] = useState('');
   const [remainingMinutes, setRemainingMinutes] = useState(0);
+  const [isVip, setIsVip] = useState(false);
+  const [isVipDetecting, setIsVipDetecting] = useState(false);
   const [isCallActive, setIsCallActive] = useState(false);
   const [recordingLang, setRecordingLang] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -146,6 +148,7 @@ export default function ClientApp() {
             setIsAuthenticated(true);
             setClientName("Administrador Master");
             setRemainingMinutes(10);
+            setIsVip(true);
             
             socketRef.current = io(window.location.origin, { 
               auth: { deviceId: adminData.deviceId, authKey: adminData.authKey } 
@@ -233,6 +236,7 @@ export default function ClientApp() {
       setIsAuthenticated(true);
       setClientName("Admin Tester");
       setRemainingMinutes(500);
+      setIsVip(true);
       socketRef.current = io(window.location.origin, {
         auth: { deviceId: "ADMIN-MASTER-DEVICE", authKey: "MASTER-KEY" }
       });
@@ -251,6 +255,7 @@ export default function ClientApp() {
         setIsAuthenticated(true);
         setClientName(data.device.client_name || 'Usuario');
         setRemainingMinutes(data.device.remaining_minutes);
+        setIsVip(Boolean(data.device.is_vip));
         fetchHistory();
         setError(null);
         socketRef.current = io(window.location.origin, { auth: { deviceId, authKey } });
@@ -297,6 +302,107 @@ export default function ClientApp() {
 
   const myLastMsg = [...messages].reverse().find(m => m.sender === 'me');
   const otherLastMsg = [...messages].reverse().find(m => m.sender === 'other');
+
+  // VAD Auto-Detect Logic
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const isSpeakingRef = useRef(false);
+  const silenceTimerRef = useRef<any>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    if (!isVipDetecting) {
+       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+          mediaRecorderRef.current.stop();
+       }
+       if (audioCtxRef.current) {
+          audioCtxRef.current.close();
+          audioCtxRef.current = null;
+       }
+       return;
+    }
+
+    let rafId: number;
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+       const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+       audioCtxRef.current = new AudioContextClass();
+       const source = audioCtxRef.current.createMediaStreamSource(stream);
+       analyserRef.current = audioCtxRef.current.createAnalyser();
+       analyserRef.current.fftSize = 512;
+       source.connect(analyserRef.current);
+
+       let mime = 'audio/webm';
+       if (!MediaRecorder.isTypeSupported(mime)) mime = 'audio/mp4'; 
+       mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: mime });
+       
+       mediaRecorderRef.current.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data) };
+       mediaRecorderRef.current.onstop = () => { 
+          if(audioChunksRef.current.length === 0) return;
+          const blob = new Blob(audioChunksRef.current, { type: mediaRecorderRef.current!.mimeType });
+          audioChunksRef.current = [];
+          
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = async () => {
+             const base64 = (reader.result as string).split(',')[1];
+             try {
+                const res = await fetch('/api/client/vip-auto-detect', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ deviceId, authKey, base64Audio: base64, mimeType: mediaRecorderRef.current!.mimeType, currentLang: fromLang })
+                });
+                const out = await res.json();
+                if(out.success && out.data.translation) {
+                   const translated = out.data.translation;
+                   const sender = out.data.detected_lang === 'English' && fromLang === 'English' ? 'me' :
+                                  out.data.detected_lang !== 'English' && fromLang !== 'English' ? 'me' : 'other';
+                   
+                   setMessages(prev => [...prev, { id: Math.random().toString(), text: out.data.transcription, translation: translated, sender, timestamp: new Date() }]);
+                   const targetLangToSpeak = sender === 'me' ? toLang : fromLang;
+                   speakText(translated, targetLangToSpeak, voiceType);
+                   if (out.remaining_minutes !== undefined) setRemainingMinutes(out.remaining_minutes);
+                } else if(out.error === "Sin Minutos") {
+                   setIsVipDetecting(false);
+                   setError("Tu plan VIP no tiene minutos restantes.");
+                } else if(out.error === "Not VIP") {
+                   setIsVipDetecting(false);
+                   setError("El servidor invalidó el estatus VIP.");
+                }
+             } catch(e) {}
+          }
+       };
+
+       const checkSilence = () => {
+          if (!analyserRef.current || !isVipDetecting) return;
+          const data = new Uint8Array(analyserRef.current.frequencyBinCount);
+          analyserRef.current.getByteFrequencyData(data);
+          const volume = data.reduce((a,b)=>a+b)/data.length;
+          
+          if (volume > 15) { // Threshold
+             if (!isSpeakingRef.current) {
+                isSpeakingRef.current = true;
+                if(mediaRecorderRef.current.state === "inactive") mediaRecorderRef.current.start();
+             }
+             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+             silenceTimerRef.current = setTimeout(() => {
+                 isSpeakingRef.current = false;
+                 if(mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") mediaRecorderRef.current.stop();
+             }, 1500);
+          }
+          rafId = requestAnimationFrame(checkSilence);
+       }
+       rafId = requestAnimationFrame(checkSilence);
+    }).catch(err => {
+        alert("Permiso de micrófono denegado para Auto-Detect.");
+        setIsVipDetecting(false);
+    });
+
+    return () => {
+       cancelAnimationFrame(rafId);
+       if(silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    }
+  }, [isVipDetecting, fromLang, toLang]);
 
   // Grao Academy Component Local Logic
   const renderAcademyFlashcards = () => {
@@ -691,6 +797,19 @@ export default function ClientApp() {
                   </button>
                   <span className="text-sm font-bold text-zinc-300 flex-1 text-center">{toLang}</span>
                 </div>
+
+                <button 
+                  onClick={() => {
+                     if (!isVip) return alert("Esta función es exclusiva para clientes con Plan VIP activo.");
+                     setIsVipDetecting(!isVipDetecting);
+                  }}
+                  className={cn("w-full py-6 rounded-3xl text-sm font-bold uppercase transition-all flex flex-col items-center gap-2 shadow-xl group mt-4 relative overflow-hidden", isVipDetecting ? "bg-amber-500 text-white shadow-amber-500/50 animate-pulse border-2 border-amber-400" : isVip ? "bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-amber-900/30 border border-amber-600" : "bg-zinc-800 text-zinc-500 border border-zinc-700 opacity-50 cursor-not-allowed")}
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+                  <span className="text-3xl mb-1">{isVipDetecting ? '🎙️' : '👑'}</span>
+                  {isVipDetecting ? 'Escuchando (Manos Libres)...' : 'VIP Auto-Detect (Manos Libres)'}
+                  {!isVip && <span className="text-[9px] bg-zinc-900 px-2 py-1 rounded text-zinc-400 mt-2">Requiere Plan VIP</span>}
+                </button>
 
                 <button 
                   onClick={() => setIsMirrorMode(true)} 
