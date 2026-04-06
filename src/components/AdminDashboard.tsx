@@ -283,28 +283,32 @@ export default function AdminDashboard() {
         {activeTab === 'stats' && stats && (
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100">
-                <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Ganancias Totales</p>
-                <p className="text-3xl font-bold text-emerald-600">${stats?.totalEarnings?.toFixed(2) || "0.00"}</p>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
+                <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Ventas Totales (Bruto)</p>
+                <p className="text-3xl font-bold text-emerald-600">${stats.totalEarnings.toFixed(2)}</p>
+                <div className="mt-2 text-[9px] text-zinc-400 font-bold uppercase">Ingresos por recargas</div>
               </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100">
-                <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Costo Google Cloud</p>
-                <p className="text-3xl font-bold text-red-500">${stats?.googleCost?.toFixed(2) || "0.00"}</p>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
+                <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Costo Google Estimado</p>
+                <p className="text-3xl font-bold text-red-500">${stats.googleCost.toFixed(2)}</p>
+                <div className="mt-2 text-[9px] text-red-400 font-bold uppercase">Uso de API consumido</div>
               </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100">
-                <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Margen Neto</p>
-                <p className="text-3xl font-bold text-indigo-600">${stats?.profitMargin?.toFixed(2) || "0.00"}</p>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
+                <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Rentabilidad (Neto)</p>
+                <p className="text-3xl font-bold text-indigo-600">${stats.profitMargin.toFixed(2)}</p>
+                <div className="mt-2 text-[9px] text-indigo-400 font-bold uppercase">Ganancia Final</div>
               </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100">
-                <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Minutos Consumidos</p>
-                <p className="text-3xl font-bold text-zinc-900">{Math.floor(stats?.totalMinutesUsed || 0)}m</p>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
+                <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Eficiencia Operativa</p>
+                <p className="text-3xl font-bold text-zinc-900">{Math.floor(stats.totalMinutesUsed)}m</p>
+                <div className="mt-2 text-[9px] text-zinc-400 font-bold uppercase">Minutos traducidos</div>
               </div>
             </div>
 
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-zinc-100">
               <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-500" />
-                Rendimiento del Ecosistema
+                Flujo de Uso vs Rentabilidad
               </h3>
               <div className="h-64 flex items-end gap-2 px-4">
                 {/* Mock Chart */}
@@ -318,16 +322,7 @@ export default function AdminDashboard() {
                 ))}
               </div>
               <div className="flex justify-between mt-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                <span>Ene</span>
-                <span>Feb</span>
-                <span>Mar</span>
-                <span>Abr</span>
-                <span>May</span>
-                <span>Jun</span>
-                <span>Jul</span>
-                <span>Ago</span>
-                <span>Sep</span>
-                <span>Oct</span>
+                <span>Ene</span><span>Feb</span><span>Mar</span><span>Abr</span><span>May</span><span>Jun</span><span>Jul</span><span>Ago</span><span>Sep</span><span>Oct</span>
               </div>
             </div>
           </div>
@@ -502,29 +497,44 @@ export default function AdminDashboard() {
 
 
         {activeTab === 'payments' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-zinc-50 text-zinc-500 text-[10px] uppercase tracking-wider font-bold">
-                  <th className="px-6 py-4">Cliente</th>
-                  <th className="px-6 py-4">Monto</th>
-                  <th className="px-6 py-4">Minutos</th>
-                  <th className="px-6 py-4">Método</th>
-                  <th className="px-6 py-4">Fecha</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-zinc-50/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-zinc-900">{p.client_name}</td>
-                    <td className="px-6 py-4 text-emerald-600 font-bold">${p.amount.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-zinc-600">{p.minutes_added}m</td>
-                    <td className="px-6 py-4 text-zinc-500 text-xs">{p.payment_method}</td>
-                    <td className="px-6 py-4 text-zinc-400 text-xs">{new Date(p.created_at).toLocaleDateString()}</td>
+          <div className="bg-white rounded-3xl shadow-sm border border-zinc-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-50 bg-zinc-50/50">
+               <h3 className="text-sm font-black text-zinc-800 uppercase tracking-tight">Historial de Ventas y Recargas</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-zinc-50 text-zinc-500 text-[10px] uppercase tracking-wider font-bold">
+                    <th className="px-6 py-4">Cliente / Dispositivo</th>
+                    <th className="px-6 py-4 text-emerald-600">Cobro (USD)</th>
+                    <th className="px-6 py-4">Minutos</th>
+                    <th className="px-6 py-4">Método</th>
+                    <th className="px-6 py-4">Fecha Transacción</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {payments.map((p) => (
+                    <tr key={p.id} className="hover:bg-zinc-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                           <span className="font-bold text-zinc-900 leading-none mb-1">{p.client_name || 'Usuario'}</span>
+                           <span className="text-[10px] font-mono text-zinc-400">{p.device_id}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-emerald-600 font-black">${p.amount.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-zinc-600 font-mono text-sm">{p.minutes_added} min</td>
+                      <td className="px-6 py-4">
+                         <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded text-[9px] uppercase font-bold">{p.payment_method}</span>
+                      </td>
+                      <td className="px-6 py-4 text-zinc-400 text-[10px] font-bold">{new Date(p.created_at).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  {payments.length === 0 && (
+                    <tr><td colSpan={5} className="px-6 py-20 text-center text-zinc-400 text-xs italic">Aún no se han registrado transacciones de pago.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

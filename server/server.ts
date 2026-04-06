@@ -169,42 +169,28 @@ app.post("/api/client/register-id", async (req, res) => {
 
 /*================================*/
 app.get("/api/admin/stats", verifyAdmin, async (req, res) => {
+  try {
+    const [usage] = await pool.query("SELECT SUM(minutes_used) as totalMinutes FROM usage_logs") as any;
+    const [earnings] = await pool.query("SELECT SUM(amount) as total FROM payments") as any;
+    
+    const totalMinutes = usage[0]?.totalMinutes || 0;
+    const totalEarnings = earnings[0]?.total || 0;
+    const googleCost = totalMinutes * 0.024;
+    const profitMargin = totalEarnings - googleCost;
 
+    const [devices] = await pool.query("SELECT COUNT(*) as activeDevices FROM devices WHERE status='active'") as any;
 
-try {
-
-const [usage] = await pool.query(`
-SELECT SUM(minutes_used) as totalMinutes
-FROM usage_logs
-`);
-
-const totalMinutes = usage[0]?.totalMinutes || 0;
-
-const googleCost = totalMinutes * 0.024;
-
-const profitMargin = totalMinutes * 0.05 - googleCost;
-
-const [devices] = await pool.query(`
-SELECT COUNT(*) as activeDevices
-FROM devices
-WHERE status='active'
-`);
-
-res.json({
-totalEarnings: totalMinutes * 0.05,
-totalMinutesUsed: totalMinutes,
-googleCost,
-profitMargin,
-activeDevices: devices[0]?.activeDevices || 0
-});
-
-} catch (error) {
-
-console.error(error);
-res.status(500).json({ error: "Stats error" });
-
-}
-
+    res.json({
+      totalEarnings,
+      totalMinutesUsed: totalMinutes,
+      googleCost,
+      profitMargin,
+      activeDevices: devices[0]?.activeDevices || 0
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Stats error" });
+  }
 });
 
 /*==================================*/

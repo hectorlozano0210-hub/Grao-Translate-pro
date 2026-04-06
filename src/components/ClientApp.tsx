@@ -836,17 +836,35 @@ export default function ClientApp() {
                   <span className="text-sm font-bold text-zinc-300 flex-1 text-center">{toLang}</span>
                 </div>
 
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                   <div className="bg-zinc-800/50 p-4 rounded-2xl border border-zinc-700/50 text-center relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-indigo-500/5 group-hover:bg-indigo-500/10 transition-colors"></div>
+                      <span className="text-xl mb-1 block">🎙️</span>
+                      <h4 className="text-[10px] font-black text-white uppercase tracking-tighter mb-1">Plan Básico</h4>
+                      <p className="text-[9px] text-zinc-500 leading-tight">Face-to-Face<br/>Modo Botones</p>
+                      <span className="mt-2 block text-xs font-bold text-indigo-400">$15</span>
+                   </div>
+                   <div className="bg-zinc-800/50 p-4 rounded-2xl border border-amber-500/30 text-center relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-amber-500/5 group-hover:bg-amber-500/10 transition-colors"></div>
+                      <div className="absolute top-0 right-0 bg-amber-500 text-[6px] font-black px-1.5 py-0.5 rounded-bl-lg text-black uppercase">TOP</div>
+                      <span className="text-xl mb-1 block">👑</span>
+                      <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-tighter mb-1">Plan PRO VIP</h4>
+                      <p className="text-[9px] text-zinc-500 leading-tight">Manos Libres<br/>Auto-Detect</p>
+                      <span className="mt-2 block text-xs font-bold text-amber-500">$45</span>
+                   </div>
+                </div>
+
                 <button 
                   onClick={() => {
-                     if (!isVip) return alert("Esta función es exclusiva para clientes con Plan VIP activo.");
+                     if (!isVip) return alert("👑 BENEFICIO VIP: Para activar el modo Manos Libres (Auto-Detect Inteligente) necesitas el Plan Profesional VIP. \n\nCon este plan, el celular detecta quién habla automáticamente sin tocar botones.");
                      setIsVipDetecting(!isVipDetecting);
                   }}
-                  className={cn("w-full py-6 rounded-3xl text-sm font-bold uppercase transition-all flex flex-col items-center gap-2 shadow-xl group mt-4 relative overflow-hidden", isVipDetecting ? "bg-amber-500 text-white shadow-amber-500/50 animate-pulse border-2 border-amber-400" : isVip ? "bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-amber-900/30 border border-amber-600" : "bg-zinc-800 text-zinc-500 border border-zinc-700 opacity-50 cursor-not-allowed")}
+                  className={cn("w-full py-6 rounded-3xl text-sm font-bold uppercase transition-all flex flex-col items-center gap-2 shadow-xl group relative overflow-hidden", isVipDetecting ? "bg-amber-500 text-white shadow-amber-500/50 animate-pulse border-2 border-amber-400" : isVip ? "bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-amber-900/30 border border-amber-600" : "bg-zinc-800 text-zinc-500 border border-zinc-700 opacity-50")}
                 >
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
                   <span className="text-3xl mb-1">{isVipDetecting ? '🎙️' : '👑'}</span>
-                  {isVipDetecting ? 'Escuchando (Manos Libres)...' : 'VIP Auto-Detect (Manos Libres)'}
-                  {!isVip && <span className="text-[9px] bg-zinc-900 px-2 py-1 rounded text-zinc-400 mt-2">Requiere Plan VIP</span>}
+                  {isVipDetecting ? 'Escuchando (Manos Libres)...' : 'Activar Manos Libres (VIP)'}
+                  {!isVip && <span className="text-[9px] bg-zinc-900 px-2 py-1 rounded text-zinc-400 mt-2">Exclusivo Plan VIP</span>}
                 </button>
 
                 <button 
@@ -857,6 +875,7 @@ export default function ClientApp() {
                   <span className="text-3xl group-hover:scale-110 transition-transform mb-1">🪞</span>
                   Modo Espejo (Face-to-Face)
                 </button>
+
 
                 <button 
                   onClick={toggleCall}
