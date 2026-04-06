@@ -550,7 +550,7 @@ export default function ClientApp() {
           <div className="mt-8 bg-zinc-800/50 border border-zinc-700/50 p-4 rounded-2xl text-center">
              <p className="text-xs text-zinc-400 mb-2">¿Aún no tienes clave de acceso o minutos?</p>
              <a 
-               href={`https://wa.me/573000000000?text=Hola%20Master%20FixPc,%20soy%20el%20dispositivo:%20${deviceId}%20y%20quiero%20adquirir%20minutos.`} 
+               href={`https://wa.me/573504257018?text=Hola%20Master%20FixPc,%20soy%20el%20dispositivo:%20${deviceId}%20y%20quiero%20adquirir%20minutos.`} 
                target="_blank" 
                rel="noreferrer"
                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-lg shadow-emerald-900/20"
@@ -903,7 +903,7 @@ export default function ClientApp() {
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-2 mt-8">Precios y Planes Oficiales</h3>
               
-              <a href={`https://wa.me/573000000000?text=Hola%20Master%20FixPc,%20soy%20el%20dispositivo%20${deviceId}.%20Deseo%20comprar%20el%20Pase%20Semanal%20Flash%20($15).`} target="_blank" rel="noreferrer" className="w-full bg-zinc-900 hover:bg-zinc-800 p-5 rounded-3xl border border-zinc-800 hover:border-emerald-500/50 flex justify-between items-center transition-all group cursor-pointer block">
+              <a href={`https://wa.me/573504257018?text=Hola%20Master%20FixPc,%20soy%20el%20dispositivo%20${deviceId}.%20Deseo%20comprar%20el%20Pase%20Semanal%20Flash%20($15).`} target="_blank" rel="noreferrer" className="w-full bg-zinc-900 hover:bg-zinc-800 p-5 rounded-3xl border border-zinc-800 hover:border-emerald-500/50 flex justify-between items-center transition-all group cursor-pointer block">
                 <div>
                   <p className="font-bold text-emerald-400 text-lg group-hover:text-emerald-300">Pase Semanal Flash</p>
                   <p className="text-sm text-zinc-300 mt-1">60 Minutos Regulados</p>
@@ -915,7 +915,7 @@ export default function ClientApp() {
                 </div>
               </a>
 
-              <a href={`https://wa.me/573000000000?text=Hola%20Master%20FixPc,%20soy%20el%20dispositivo%20${deviceId}.%20Deseo%20comprar%20el%20Plan%20Profesional%20VIP%20($45).`} target="_blank" rel="noreferrer" className="w-full bg-zinc-900 hover:bg-zinc-800 p-5 rounded-3xl border border-indigo-500/30 hover:border-indigo-400 flex justify-between items-center group relative overflow-hidden transition-all cursor-pointer block">
+              <a href={`https://wa.me/573504257018?text=Hola%20Master%20FixPc,%20soy%20el%20dispositivo%20${deviceId}.%20Deseo%20comprar%20el%20Plan%20Profesional%20VIP%20($45).`} target="_blank" rel="noreferrer" className="w-full bg-zinc-900 hover:bg-zinc-800 p-5 rounded-3xl border border-indigo-500/30 hover:border-indigo-400 flex justify-between items-center group relative overflow-hidden transition-all cursor-pointer block">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"></div>
                 <div className="mt-2 z-10 relative">
                   <p className="font-bold text-indigo-400 text-lg flex items-center gap-2">Plan Profesional <span className="bg-indigo-500 text-white text-[8px] px-2 py-0.5 rounded uppercase">VIP Incluido</span></p>
