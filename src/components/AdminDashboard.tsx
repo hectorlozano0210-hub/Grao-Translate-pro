@@ -39,6 +39,7 @@ export default function AdminDashboard() {
     minutes: 60,
     amount: 0
   });
+  const [searchQuery, setSearchQuery] = useState('');
 
   const getAuthHeaders = () => {
     const token = sessionStorage.getItem("adminToken");
@@ -333,107 +334,172 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'devices' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
-            <div className="p-6 border-b border-zinc-100 flex justify-between items-center">
-              <div className="relative w-96">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                <input 
-                  type="text" 
-                  placeholder="Buscar por ID o Nombre..." 
-                  className="w-full pl-10 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
+          <div className="space-y-8 pb-10">
+            {/* Search and Price Guide Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 flex items-center gap-4">
+                <div className="relative flex-1">
+                  <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar por ID, nombre de cliente o clave..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium"
+                  />
+                </div>
+                <button 
+                  onClick={() => openActivateModal('')}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 font-bold text-sm whitespace-nowrap"
+                >
+                  <PlusCircle className="w-5 h-5" />
+                  Nueva Licencia
+                </button>
               </div>
-              <button 
-                onClick={() => openActivateModal('')}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-bold text-sm shadow-indigo-500/20"
-              >
-                <PlusCircle className="w-5 h-5" />
-                Registrar Licencia
-              </button>
+
+              <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-6 rounded-2xl shadow-lg shadow-amber-500/20 text-white relative overflow-hidden">
+                <div className="relative z-10">
+                  <h4 className="text-[10px] uppercase font-black tracking-widest mb-3 opacity-80">Guía de Precios Sugeridos</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold">Flash (Semanal)</span>
+                      <span className="bg-white/20 px-2 py-0.5 rounded-lg">$15 USD</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold">Pro VIP (Mensual)</span>
+                      <span className="bg-white/20 px-2 py-0.5 rounded-lg">$45 USD</span>
+                    </div>
+                  </div>
+                </div>
+                <DollarSign className="absolute -bottom-2 -right-2 w-20 h-20 text-white/10 rotate-12" />
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-zinc-50 text-zinc-500 text-[10px] uppercase tracking-wider font-bold">
-                    <th className="px-6 py-4">Cliente</th>
-                    <th className="px-6 py-4">Device ID</th>
-                    <th className="px-6 py-4">Clave Acceso</th>
-                    <th className="px-6 py-4">Estado</th>
-                    <th className="px-6 py-4">Plan</th>
-                    <th className="px-6 py-4">Minutos</th>
-                    <th className="px-6 py-4">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {devices.map((device) => (
-                    <tr key={device.id} className="hover:bg-zinc-50/50 transition-colors">
 
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 font-bold text-xs">
-                            {device.client_name?.[0] || '?'}
-                          </div>
-                          <span className="font-medium text-zinc-900">
-                            {device.client_name || 'Sin Nombre'}
-                          </span>
-                        </div>
-                      </td>
+            {/* Listas Divididas */}
+            {(() => {
+              const filtered = devices.filter(d => 
+                d.device_id.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (d.client_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (d.auth_key || '').toLowerCase().includes(searchQuery.toLowerCase())
+              );
+              
+              const activeClients = filtered.filter(d => d.status === 'active');
+              const pendingRequests = filtered.filter(d => d.status === 'pending');
 
-                      <td className="px-6 py-4 font-mono text-xs text-zinc-500">
-                        {device.device_id}
-                      </td>
+              return (
+                <>
+                  {/* Clientes Activos */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-zinc-50 bg-zinc-50/50 flex items-center justify-between">
+                      <h3 className="text-sm font-black text-zinc-800 uppercase tracking-tight flex items-center gap-2">
+                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                         Clientes con Licencia Activa ({activeClients.length})
+                      </h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-zinc-50/30 text-zinc-500 text-[10px] uppercase tracking-wider font-bold">
+                            <th className="px-6 py-4">Cliente</th>
+                            <th className="px-6 py-4">ID Dispositivo</th>
+                            <th className="px-6 py-4">Clave</th>
+                            <th className="px-6 py-4">Plan / Tiempo</th>
+                            <th className="px-6 py-4">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {activeClients.map((device) => (
+                            <tr key={device.id} className="hover:bg-zinc-50/50 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xs">
+                                    {device.client_name?.[0] || 'U'}
+                                  </div>
+                                  <span className="font-bold text-zinc-900 leading-none">{device.client_name || 'Usuario'}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 font-mono text-[10px] text-zinc-400">{device.device_id}</td>
+                              <td className="px-6 py-4 font-mono text-xs font-black text-indigo-500">{device.auth_key}</td>
+                              <td className="px-6 py-4">
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] font-bold text-zinc-900">{device.plan_type}</span>
+                                  <div className="flex items-center gap-1">
+                                    <Activity className="w-3 h-3 text-emerald-500" />
+                                    <span className="text-[10px] font-mono text-emerald-600">{Math.floor(device.remaining_minutes)} min restantes</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                  <button onClick={() => openActivateModal(device.device_id)} className="p-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-lg transition-colors" title="Recargar">
+                                    <RefreshCw className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => handleDelete(device.device_id)} className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg transition-colors" title="Eliminar">
+                                    <LogOut className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {activeClients.length === 0 && (
+                            <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-400 text-xs italic">No hay clientes activos que coincidan con la búsqueda.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
 
-                      <td className="px-6 py-4 font-mono text-xs font-bold text-indigo-500">
-                        {device.auth_key || 'PENDIENTE'}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase",
-                          device.status === 'active'
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                        )}>
-                          {device.status}
-                        </span>
-                      </td>
-
-                      <td className="px-6 py-4 text-sm text-zinc-600">
-                        {device.plan_type || '-'}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-zinc-900">
-                            {Math.floor(device.remaining_minutes)}m
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => openActivateModal(device.device_id)}
-                            className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] uppercase font-bold rounded-lg transition-colors border border-indigo-100"
-                          >
-                            Recargar 
-                          </button>
-                          <button
-                            onClick={() => handleDelete(device.device_id)}
-                            className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] uppercase font-bold rounded-lg transition-colors border border-red-100"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
-
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  {/* Solicitudes Pendientes */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-zinc-50 bg-amber-50/30 flex items-center justify-between">
+                      <h3 className="text-sm font-black text-amber-800 uppercase tracking-tight flex items-center gap-2">
+                         <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                         Solicitudes Pendientes / Nuevos Ingresos ({pendingRequests.length})
+                      </h3>
+                      <p className="text-[9px] text-amber-600 font-bold italic">Estos equipos han abierto la App pero no han sido activados.</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-zinc-50/30 text-zinc-500 text-[10px] uppercase tracking-wider font-bold">
+                            <th className="px-6 py-4">ID Dispositivo</th>
+                            <th className="px-6 py-4">Fecha de Ingreso</th>
+                            <th className="px-6 py-4 text-right">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {pendingRequests.map((device) => (
+                            <tr key={device.id} className="hover:bg-amber-50/20 transition-colors">
+                              <td className="px-6 py-4 font-mono text-xs font-bold text-zinc-500">{device.device_id}</td>
+                              <td className="px-6 py-4 text-[10px] text-zinc-400">{new Date(device.created_at).toLocaleString()}</td>
+                              <td className="px-6 py-4 text-right">
+                                <div className="flex items-center justify-end gap-3">
+                                  <button 
+                                    onClick={() => openActivateModal(device.device_id)}
+                                    className="px-4 py-1.5 bg-amber-500 text-white text-[10px] uppercase font-black rounded-full hover:bg-amber-600 transition-all shadow-md shadow-amber-500/20"
+                                  >
+                                    Activar ahora
+                                  </button>
+                                  <button onClick={() => handleDelete(device.device_id)} className="text-zinc-300 hover:text-red-500 transition-colors">
+                                    <LogOut className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {pendingRequests.length === 0 && (
+                            <tr><td colSpan={3} className="px-6 py-12 text-center text-zinc-400 text-xs italic">No hay solicitudes pendientes en este momento.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
+
 
         {activeTab === 'payments' && (
           <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">

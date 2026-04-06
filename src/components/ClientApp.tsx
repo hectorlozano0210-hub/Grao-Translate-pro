@@ -163,6 +163,31 @@ export default function ClientApp() {
       localStorage.setItem("grao_device_id", storedId);
       setDeviceId(storedId);
 
+      // Auto-login if authKey exists
+      const savedAuthKey = localStorage.getItem("grao_auth_key");
+      if (savedAuthKey) {
+        try {
+          const res = await fetch('/api/client/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId: storedId, authKey: savedAuthKey })
+          });
+          const data = await res.json();
+          if (data.success) {
+            setAuthKey(savedAuthKey);
+            setIsAuthenticated(true);
+            setClientName(data.device.client_name || 'Usuario');
+            setRemainingMinutes(data.device.remaining_minutes);
+            setIsVip(Boolean(data.device.is_vip));
+            fetchHistory();
+            socketRef.current = io(window.location.origin, {
+               auth: { deviceId: storedId, authKey: savedAuthKey }
+            });
+            setupSocketListeners(socketRef.current);
+          }
+        } catch(e) { console.error("Auto-login failed", e); }
+      }
+
       fetch("/api/client/register-id", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -252,6 +277,7 @@ export default function ClientApp() {
       });
       const data = await res.json();
       if (data.success) {
+        localStorage.setItem("grao_auth_key", authKey);
         setIsAuthenticated(true);
         setClientName(data.device.client_name || 'Usuario');
         setRemainingMinutes(data.device.remaining_minutes);
@@ -753,7 +779,7 @@ export default function ClientApp() {
           onClick={() => setActiveView('payment')}
           className={cn("flex-[1_0_auto] py-2 px-3 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1", activeView === 'payment' ? "bg-zinc-800 text-white" : "text-zinc-500")}
         >
-          <CreditCard className="w-4 h-4" /> Recargas
+          <CreditCard className="w-4 h-4" /> Solicitar Recarga
         </button>
         <button 
           onClick={() => setActiveView('help')}
@@ -888,7 +914,7 @@ export default function ClientApp() {
         {activeView === 'payment' && (
           <div className="space-y-6 animate-in fade-in relative py-4">
              <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 p-6 rounded-3xl shadow-xl shadow-indigo-600/20 border border-indigo-500/30">
-              <p className="text-xs font-bold text-white/70 uppercase mb-1 tracking-widest">Saldo Activo</p>
+              <p className="text-xs font-bold text-white/70 uppercase mb-1 tracking-widest">Estado de Cuenta</p>
               <h3 className="text-2xl font-bold mb-4">{clientName}</h3>
               <div className="flex justify-between items-end">
                 <div>
