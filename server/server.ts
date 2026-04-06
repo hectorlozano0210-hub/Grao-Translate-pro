@@ -21,11 +21,15 @@ const GOOGLE_COST_PER_MINUTE = 0.024;
 async function startServer() {
 
   try {
-    // Inicializar columna VIP si no existe
+    // Inicializar columnas si no existen
     await pool.query("ALTER TABLE devices ADD COLUMN is_vip BOOLEAN DEFAULT FALSE");
-  } catch(e) {
-    // La columna ya existe
-  }
+  } catch(e) {}
+  try {
+    await pool.query("ALTER TABLE devices ADD COLUMN client_name VARCHAR(150) DEFAULT 'Sin Nombre'");
+  } catch(e) {}
+  try {
+    await pool.query("ALTER TABLE devices ADD COLUMN plan_type VARCHAR(100) DEFAULT 'Mensual'");
+  } catch(e) {}
 
 const JWT_SECRET = process.env.JWT_SECRET || "default_super_secret_for_dev_only";
 
