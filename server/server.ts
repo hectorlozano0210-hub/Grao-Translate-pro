@@ -459,7 +459,12 @@ const [existing] = await pool.query("SELECT * FROM devices WHERE device_id = ?",
 let finalAuthKey = "";
 
 if (existing.length === 0) {
-  return res.status(400).json({error: "El ID de Pantalla no existe.\nEl usuario debe abrir la aplicación primero para generarlo."});
+  finalAuthKey = "GRAO-" + crypto.randomBytes(4).toString("hex").toUpperCase();
+  await pool.query(`
+    INSERT INTO devices 
+    (device_id, auth_key, status, client_name, plan_type, total_minutes, remaining_minutes, expires_at, is_vip)
+    VALUES (?, ?, 'active', ?, ?, ?, ?, ?, ?)
+  `, [deviceId, finalAuthKey, clientName || 'Sin Nombre', planType || 'Estandar', minutes, minutes, expiresAt, Boolean(isVip)]);
 } else {
   // If it was already active or pending, just top-up and update. For pending, we might generate a new key if it didn't have one, but old DB sets a 64-char key. Just generate a nice one if it's pending.
   const isPending = existing[0].status === 'pending';
@@ -480,10 +485,14 @@ if (existing.length === 0) {
 }
 
 if (amount > 0) {
-  await pool.query(`
-  INSERT INTO payments (device_id, client_name, amount, minutes_added, payment_method, created_at)
-  VALUES (?, ?, ?, ?, 'Manual', NOW())
-  `, [deviceId, clientName || 'Sin Nombre', amount, minutes]);
+  try {
+    await pool.query(`
+    INSERT INTO payments (device_id, client_name, amount, minutes_added, payment_method, created_at)
+    VALUES (?, ?, ?, ?, 'Manual', NOW())
+    `, [deviceId, clientName || 'Sin Nombre', amount, minutes]);
+  } catch (paymentErr) {
+    console.error("Payment insert ignored: ", paymentErr);
+  }
 }
 
 res.json({
@@ -492,10 +501,10 @@ res.json({
   isNew: existing.length === 0
 });
 
-}catch(err){
+}catch(err: any){
 
 console.error(err);
-res.status(500).json({error:"Activation failed"});
+res.status(500).json({error:"Activation failed: " + err.message});
 
 }
 
