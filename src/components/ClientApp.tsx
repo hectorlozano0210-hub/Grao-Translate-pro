@@ -547,7 +547,19 @@ export default function ClientApp() {
             </button>
           </div>
 
-          <div className="mt-12 text-center">
+          <div className="mt-8 bg-zinc-800/50 border border-zinc-700/50 p-4 rounded-2xl text-center">
+             <p className="text-xs text-zinc-400 mb-2">¿Aún no tienes clave de acceso o minutos?</p>
+             <a 
+               href={`https://wa.me/573000000000?text=Hola%20Master%20FixPc,%20soy%20el%20dispositivo:%20${deviceId}%20y%20quiero%20adquirir%20minutos.`} 
+               target="_blank" 
+               rel="noreferrer"
+               className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-lg shadow-emerald-900/20"
+             >
+                <MessageCircle className="w-4 h-4" /> Hablar con el Administrador
+             </a>
+          </div>
+
+          <div className="mt-8 text-center">
             <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Desarrollado por</p>
             <p className="text-sm font-medium text-zinc-400">Hector Lozano Design</p>
           </div>
@@ -890,31 +902,38 @@ export default function ClientApp() {
             </div>
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest px-2 mt-8">Precios y Planes Oficiales</h3>
-              <div className="w-full bg-zinc-900 p-5 rounded-3xl border border-zinc-800 flex justify-between items-center">
+              
+              <a href={`https://wa.me/573000000000?text=Hola%20Master%20FixPc,%20soy%20el%20dispositivo%20${deviceId}.%20Deseo%20comprar%20el%20Pase%20Semanal%20Flash%20($15).`} target="_blank" rel="noreferrer" className="w-full bg-zinc-900 hover:bg-zinc-800 p-5 rounded-3xl border border-zinc-800 hover:border-emerald-500/50 flex justify-between items-center transition-all group cursor-pointer block">
                 <div>
-                  <p className="font-bold text-emerald-400 text-lg">Pase Semanal Flash</p>
-                  <p className="text-sm text-zinc-300 mt-1">60 Minutos VIP</p>
-                  <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">Traducciones instantáneas sin cortes.</p>
+                  <p className="font-bold text-emerald-400 text-lg group-hover:text-emerald-300">Pase Semanal Flash</p>
+                  <p className="text-sm text-zinc-300 mt-1">60 Minutos Regulados</p>
+                  <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">Traducciones instantáneas. Modo botones.</p>
                 </div>
-                <span className="text-2xl font-bold text-white">$15<span className="text-sm text-zinc-500">.00</span></span>
-              </div>
-              <div className="w-full bg-zinc-900 p-5 rounded-3xl border border-indigo-500/30 flex justify-between items-center group relative overflow-hidden">
+                <div className="text-right">
+                   <span className="text-2xl font-bold text-white block">$15<span className="text-sm text-zinc-500">.00</span></span>
+                   <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded lowercase mt-2 inline-block">Comprar x WhatsApp</span>
+                </div>
+              </a>
+
+              <a href={`https://wa.me/573000000000?text=Hola%20Master%20FixPc,%20soy%20el%20dispositivo%20${deviceId}.%20Deseo%20comprar%20el%20Plan%20Profesional%20VIP%20($45).`} target="_blank" rel="noreferrer" className="w-full bg-zinc-900 hover:bg-zinc-800 p-5 rounded-3xl border border-indigo-500/30 hover:border-indigo-400 flex justify-between items-center group relative overflow-hidden transition-all cursor-pointer block">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"></div>
-                <div className="mt-4 z-10 relative">
-                  <p className="font-bold text-indigo-400 text-lg">Plan Profesional</p>
+                <div className="mt-2 z-10 relative">
+                  <p className="font-bold text-indigo-400 text-lg flex items-center gap-2">Plan Profesional <span className="bg-indigo-500 text-white text-[8px] px-2 py-0.5 rounded uppercase">VIP Incluido</span></p>
                   <p className="text-sm text-zinc-300 mt-1">300 Minutos Premium</p>
-                  <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">Máxima nitidez IAM. Recomendado turismo.</p>
+                  <p className="text-[10px] text-zinc-500 mt-1 max-w-[200px]">Máxima nitidez. Manos Libres. Recomendado turismo.</p>
                 </div>
-                <span className="text-2xl font-bold text-white z-10 relative">$45<span className="text-sm text-zinc-500">.00</span></span>
-              </div>
+                <div className="text-right z-10 relative">
+                  <span className="text-2xl font-bold text-white block">$45<span className="text-sm text-zinc-500">.00</span></span>
+                  <span className="text-[9px] bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded lowercase mt-2 inline-block">Comprar x WhatsApp</span>
+                </div>
+              </a>
             </div>
             <div className="bg-amber-500/10 p-5 rounded-3xl border border-amber-500/20 flex gap-4 mt-8">
               <AlertCircle className="w-6 h-6 text-amber-500 shrink-0 mt-1" />
               <div>
-                <p className="text-sm font-bold text-amber-500 mb-2">¿Cómo recargar tu equipo?</p>
+                <p className="text-sm font-bold text-amber-500 mb-2">¿Cómo funcionan las recargas?</p>
                 <p className="text-xs text-amber-200/80 leading-relaxed">
-                  Para adquirir alguno de estos planes, debes enviar un mensaje al administrador oficial (<strong>Master FixPc</strong>) adjuntado tu Pantalla ID única:<br/><br/>
-                  <span className="font-mono bg-black/40 text-white px-3 py-1.5 rounded-lg border border-white/5 shadow-inner tracking-widest block text-center select-all">{deviceId}</span>
+                  Toca el botón del plan que deseas adquirir arriba. Esto abrirá un chat directo vía WhatsApp con soporte enviando automáticamente tu Código ID. Puedes pagar a través de Nequi, Bancolombia, o medios US habilitados en el chat.
                 </p>
               </div>
             </div>
@@ -939,7 +958,25 @@ export default function ClientApp() {
                 Modo Espejo (En Persona)
               </h4>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Diseñado para charla frente a frente. <strong>Presiona la herramienta "Modo Espejo"</strong>. La pantalla se dividirá a la mitad proporcionando dos micrófonos grandes interactivos.
+                Diseñado para charla frente a frente. <strong>Presiona "Modo Espejo"</strong>. La pantalla se dividirá a la mitad proporcionando dos micrófonos grandes. Toca el tuyo para hablar.
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-amber-500/10 to-amber-700/10 rounded-3xl p-5 border border-amber-500/20 shadow-sm relative overflow-hidden group">
+              <h4 className="font-bold text-amber-500 mb-2 flex items-center gap-2">
+                <span className="bg-amber-500/20 w-6 h-6 rounded-full flex items-center justify-center text-xs text-white">3</span> 
+                👑 VIP Auto-Detect (Manos Libres)
+              </h4>
+              <p className="text-sm text-amber-200/80 leading-relaxed mb-2">
+                <strong>(Exclusivo Plan VIP):</strong> Pon el celular en mesa y toca el botón VIP Dorado. El sistema abrirá permanentemente el micrófono pero no cobrará datos. Escuchará de forma inteligente el ambiente y, al terminar de hablar tú o tu invitado en cualquier idioma, lo detectará, lo traducirá en secreto y lo leerá en voz alta de manera instantánea.
+              </p>
+            </div>
+            <div className="bg-indigo-900/20 rounded-3xl p-5 border border-indigo-500/20 shadow-sm relative overflow-hidden group">
+              <h4 className="font-bold text-indigo-400 mb-2 flex items-center gap-2">
+                <span className="bg-indigo-500/20 w-6 h-6 rounded-full flex items-center justify-center text-xs text-white">4</span> 
+                🎓 Zona de Enseñanza (Academia)
+              </h4>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                A medida que usas el traductor a diario, el sistema guarda en el Histórico lo que conversaste. Ingresando a la solapa <strong>Academia</strong>, verás Flashcards en 3D con esas frases reales. Gíralas para ver la traducción o toca en "Explicar Gramática" para que la IA actúe como un Profesor Privado detallando porqué se dice de esa manera.
               </p>
             </div>
           </div>
