@@ -115,7 +115,7 @@ export default function AdminDashboard() {
   }, [isLoggedIn]);
 
   const handleActivate = async () => {
-    if (!selectedDevice) return;
+    if (!selectedDevice && !activationData.deviceId) return;
     try {
       // Re-use amount for days in UI to keep form simple, but let backend handle days
       const days = activationData.amount || 30;
