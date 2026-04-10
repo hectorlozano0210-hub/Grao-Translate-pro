@@ -10,8 +10,11 @@ import rateLimit from "express-rate-limit";
 import crypto from "crypto";
 import cors from "cors";
 import jwt from "jsonwebtoken";
+import vision from "@google-cloud/vision";
 
 dotenv.config();
+
+const visionClient = new vision.ImageAnnotatorClient();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +33,19 @@ async function startServer() {
   try {
     await pool.query("ALTER TABLE devices ADD COLUMN plan_type VARCHAR(100) DEFAULT 'Mensual'");
   } catch(e) {}
+
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key_name VARCHAR(50) PRIMARY KEY,
+        value VARCHAR(255)
+      )
+    `);
+    // Seed default values if they don't exist
+    await pool.query("INSERT IGNORE INTO settings (key_name, value) VALUES ('price_basic', '15'), ('price_vip', '45'), ('contact_whatsapp', '573123456789')");
+  } catch(e) {
+    console.error("Error initializing settings table:", e);
+  }
 
 const JWT_SECRET = process.env.JWT_SECRET || "default_super_secret_for_dev_only";
 
@@ -96,8 +112,68 @@ const verifyAdmin = (req: any, res: any, next: any) => {
 };
 
 /*================================
-   VERIFICAR LICENCIA
+   CONFIGURACIÓN DINÁMICA
 ===============================*/
+app.get("/api/config", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT key_name, value FROM settings") as any;
+    const config = rows.reduce((acc: any, row: any) => {
+      acc[row.key_name] = row.value;
+      return acc;
+    }, {});
+    res.json(config);
+  } catch (error) {
+    res.status(500).json({ error: "Config error" });
+  }
+});
+
+app.post("/api/admin/config", verifyAdmin, async (req, res) => {
+  const { price_basic, price_vip, contact_whatsapp } = req.body;
+  try {
+    if (price_basic) await pool.query("UPDATE settings SET value = ? WHERE key_name = 'price_basic'", [price_basic]);
+    if (price_vip) await pool.query("UPDATE settings SET value = ? WHERE key_name = 'price_vip'", [price_vip]);
+    if (contact_whatsapp) await pool.query("UPDATE settings SET value = ? WHERE key_name = 'contact_whatsapp'", [contact_whatsapp]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Update config error" });
+  }
+});
+
+/*================================
+   TRADUCCIÓN POR IMAGEN (OCR)
+===============================*/
+app.post("/api/translate/ocr", async (req, res) => {
+  const { image_base64 } = req.body;
+
+  if (!image_base64) {
+    return res.status(400).json({ error: "No image provided" });
+  }
+
+  try {
+    // Process base64
+    const buffer = Buffer.from(image_base64.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+
+    // Call Google Vision
+    const [result] = await visionClient.textDetection({ image: { content: buffer } });
+    const detections = result.textAnnotations;
+
+    if (!detections || detections.length === 0) {
+      return res.json({ text: "", error: "No se detectó texto en la imagen" });
+    }
+
+    const fullText = detections[0].description;
+    
+    // Return extracted text. Translation will be handled by the client 
+    // to reuse the existing Gemini logic and avoid server-side complexity.
+    res.json({ text: fullText });
+
+  } catch (error) {
+    console.error("OCR Error:", error);
+    res.status(500).json({ error: "Error procesando la imagen" });
+  }
+});
+
+/*================================
 
 app.post("/api/device/check", async (req, res) => {
 

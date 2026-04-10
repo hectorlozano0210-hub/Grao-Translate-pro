@@ -24,11 +24,12 @@ interface Payment {
 export default function AdminDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!sessionStorage.getItem("adminToken"));
   const [loginData, setLoginData] = useState({ username: '', password: '' });
-  const [activeTab, setActiveTab] = useState<'devices' | 'stats' | 'payments'>('devices');
+  const [activeTab, setActiveTab] = useState<'devices' | 'stats' | 'payments' | 'config'>('devices');
   const [devices, setDevices] = useState<Device[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState({ price_basic: '15', price_vip: '45', contact_whatsapp: '' });
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
   const [activationData, setActivationData] = useState({
@@ -104,10 +105,27 @@ export default function AdminDashboard() {
       setStats(await statsRes.json());
       const payData = await payRes.json();
       setPayments(Array.isArray(payData) ? payData : []);
+      
+      const configRes = await fetch('/api/config');
+      if (configRes.ok) setConfig(await configRes.json());
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateConfig = async () => {
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(config)
+      });
+      if (res.ok) alert("Configuración actualizada correctamente");
+      else alert("Error al actualizar configuración");
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -233,6 +251,16 @@ export default function AdminDashboard() {
             <DollarSign className="w-5 h-5" />
             <span>Pagos</span>
           </button>
+          <button 
+            onClick={() => setActiveTab('config')}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all",
+              activeTab === 'config' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "text-zinc-400 hover:bg-zinc-800"
+            )}
+          >
+            <Settings className="w-5 h-5" />
+            <span>Configuración</span>
+          </button>
         </nav>
 
         <div className="mt-auto space-y-2">
@@ -270,6 +298,7 @@ export default function AdminDashboard() {
             {activeTab === 'devices' && "Gestión de Equipos"}
             {activeTab === 'stats' && "Análisis de Negocio"}
             {activeTab === 'payments' && "Historial de Transacciones"}
+            {activeTab === 'config' && "Configuración del Sistema"}
           </h2>
           <button 
             onClick={fetchData}
@@ -285,22 +314,22 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
                 <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Ventas Totales (Bruto)</p>
-                <p className="text-3xl font-bold text-emerald-600">${stats.totalEarnings.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-emerald-600">${(stats?.totalEarnings || 0).toFixed(2)}</p>
                 <div className="mt-2 text-[9px] text-zinc-400 font-bold uppercase">Ingresos por recargas</div>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
                 <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Costo Google Estimado</p>
-                <p className="text-3xl font-bold text-red-500">${stats.googleCost.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-red-500">${(stats?.googleCost || 0).toFixed(2)}</p>
                 <div className="mt-2 text-[9px] text-red-400 font-bold uppercase">Uso de API consumido</div>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
                 <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Rentabilidad (Neto)</p>
-                <p className="text-3xl font-bold text-indigo-600">${stats.profitMargin.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-indigo-600">${(stats?.profitMargin || 0).toFixed(2)}</p>
                 <div className="mt-2 text-[9px] text-indigo-400 font-bold uppercase">Ganancia Final</div>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
                 <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Eficiencia Operativa</p>
-                <p className="text-3xl font-bold text-zinc-900">{Math.floor(stats.totalMinutesUsed)}m</p>
+                <p className="text-3xl font-bold text-zinc-900">{Math.floor(stats?.totalMinutesUsed || 0)}m</p>
                 <div className="mt-2 text-[9px] text-zinc-400 font-bold uppercase">Minutos traducidos</div>
               </div>
             </div>
@@ -513,27 +542,75 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {payments.map((p) => (
+                  {Array.isArray(payments) && payments.map((p) => (
                     <tr key={p.id} className="hover:bg-zinc-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                           <span className="font-bold text-zinc-900 leading-none mb-1">{p.client_name || 'Usuario'}</span>
-                           <span className="text-[10px] font-mono text-zinc-400">{p.device_id}</span>
+                           <span className="font-bold text-zinc-900 leading-none mb-1">{p?.client_name || 'Usuario'}</span>
+                           <span className="text-[10px] font-mono text-zinc-400">{p?.device_id}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-emerald-600 font-black">${p.amount.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-zinc-600 font-mono text-sm">{p.minutes_added} min</td>
+                      <td className="px-6 py-4 text-emerald-600 font-black">${(p?.amount || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-zinc-600 font-mono text-sm">{p?.minutes_added || 0} min</td>
                       <td className="px-6 py-4">
-                         <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded text-[9px] uppercase font-bold">{p.payment_method}</span>
+                         <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded text-[9px] uppercase font-bold">{p?.payment_method || 'N/A'}</span>
                       </td>
-                      <td className="px-6 py-4 text-zinc-400 text-[10px] font-bold">{new Date(p.created_at).toLocaleString()}</td>
+                      <td className="px-6 py-4 text-zinc-400 text-[10px] font-bold">{p?.created_at ? new Date(p.created_at).toLocaleString() : '---'}</td>
                     </tr>
                   ))}
-                  {payments.length === 0 && (
+                  {(!Array.isArray(payments) || payments.length === 0) && (
                     <tr><td colSpan={5} className="px-6 py-20 text-center text-zinc-400 text-xs italic">Aún no se han registrado transacciones de pago.</td></tr>
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'config' && (
+          <div className="max-w-2xl space-y-6">
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-zinc-100">
+               <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                 <Settings className="w-5 h-5 text-indigo-500" />
+                 Parámetros Generales
+               </h3>
+               <div className="space-y-4">
+                 <div>
+                   <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Precio Plan Básico ($)</label>
+                   <input 
+                    type="number" 
+                    value={config.price_basic}
+                    onChange={e => setConfig({...config, price_basic: e.target.value})}
+                    className="w-full px-4 py-2 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                   />
+                 </div>
+                 <div>
+                   <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Precio Plan VIP ($)</label>
+                   <input 
+                    type="number" 
+                    value={config.price_vip}
+                    onChange={e => setConfig({...config, price_vip: e.target.value})}
+                    className="w-full px-4 py-2 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                   />
+                 </div>
+                 <div>
+                   <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">WhatsApp de Contacto (con prefijo país)</label>
+                   <input 
+                    type="text" 
+                    value={config.contact_whatsapp}
+                    onChange={e => setConfig({...config, contact_whatsapp: e.target.value})}
+                    placeholder="Ej: 573123456789"
+                    className="w-full px-4 py-2 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                   />
+                 </div>
+
+                 <button 
+                  onClick={handleUpdateConfig}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all mt-6"
+                 >
+                   Guardar Cambios
+                 </button>
+               </div>
             </div>
           </div>
         )}
