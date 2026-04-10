@@ -522,25 +522,34 @@ export default function ClientApp() {
         {activeView === 'academy' && React.createElement(renderAcademyFlashcards)}
 
         {activeView === 'home' && (
-          <div className="flex flex-col gap-4 py-4 w-full">
+          <div className="flex flex-col gap-4 py-4 w-full h-[70vh] relative">
              <div className="flex items-center justify-around bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
                 <span className="text-xs font-bold">{fromLang}</span>
                 <button onClick={() => { setFromLang(toLang); setToLang(fromLang); }} className="p-2 bg-zinc-800 rounded-full text-indigo-400"><RefreshCw className="w-4" /></button>
                 <span className="text-xs font-bold">{toLang}</span>
              </div>
-             <button 
-                onClick={() => { 
-                   if (!isVip) return alert("Plan VIP Requerido"); 
-                   if (!isVipDetecting) setMessages([]);
-                   setIsVipDetecting(!isVipDetecting); 
-                }} 
-                className={cn("w-full py-8 rounded-3xl uppercase font-black text-xs flex flex-col items-center gap-3", isVipDetecting ? "bg-amber-500 text-white animate-pulse" : "bg-zinc-900 border border-amber-500/20 text-amber-500")}
-             >
-                <span className="text-3xl">👑</span> {isVipDetecting ? 'IA Escuchando...' : 'Manos Libres (VIP)'}
-             </button>
-             <button onClick={() => setIsMirrorMode(true)} className="w-full py-8 bg-indigo-600 rounded-3xl uppercase font-black text-xs flex flex-col items-center gap-2 shadow-xl shadow-indigo-600/20"><span className="text-3xl">🪞</span> Cara a Cara</button>
-             <button onClick={toggleCall} className="w-full py-6 bg-zinc-900 border border-zinc-800 rounded-3xl uppercase font-black text-xs flex flex-col items-center gap-2 text-zinc-300"><span className="text-xl">📱</span> Llamada</button>
-             <button onClick={() => setActiveView('camera')} className="w-full py-6 bg-zinc-900 border border-zinc-800 rounded-3xl uppercase font-black text-xs flex flex-col items-center gap-2 text-zinc-300"><span className="text-xl">📸</span> Foto</button>
+             
+             <div className="flex-1 flex flex-col items-center justify-center">
+               <div className="relative">
+                 {isVipDetecting && <div className="absolute inset-0 bg-amber-500 rounded-full animate-ping opacity-20"></div>}
+                 <button 
+                    onClick={() => { 
+                       if (!isVip) return alert("Plan VIP Requerido"); 
+                       if (!isVipDetecting) setMessages([]);
+                       setIsVipDetecting(!isVipDetecting); 
+                    }} 
+                    className={cn("relative z-10 w-48 h-48 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300", isVipDetecting ? "bg-amber-500 shadow-amber-500/50 scale-105" : "bg-indigo-600 shadow-indigo-600/30 hover:scale-105")}
+                 >
+                    {isVipDetecting ? <div className="flex gap-2"><div className="w-3 h-3 bg-white rounded-full animate-bounce"></div><div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div><div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div></div> : <Mic className="w-20 h-20 text-white" />}
+                 </button>
+               </div>
+               <p className="mt-8 text-zinc-500 text-[10px] font-black uppercase tracking-widest">{isVipDetecting ? 'Procesando Voz...' : 'Toque para Empezar'}</p>
+             </div>
+
+             <div className="grid grid-cols-2 gap-3 mt-auto">
+                <button onClick={() => setActiveView('camera')} className="py-4 bg-zinc-900/50 border border-zinc-800 rounded-[2rem] uppercase font-black text-[10px] flex flex-col items-center justify-center gap-1 text-zinc-400 hover:bg-zinc-800 transition-colors"><Camera className="w-5 h-5 mb-1" /> OCR Foto</button>
+                <button onClick={toggleCall} className="py-4 bg-zinc-900/50 border border-zinc-800 rounded-[2rem] uppercase font-black text-[10px] flex flex-col items-center justify-center gap-1 text-zinc-400 hover:bg-zinc-800 transition-colors"><Phone className="w-5 h-5 mb-1" /> Llamada</button>
+             </div>
           </div>
         )}
 
