@@ -885,7 +885,7 @@ app.post('/api/tts', async (req, res) => {
   try {
     const googleTTS = await import('google-tts-api');
     const url = googleTTS.getAudioUrl(text, {
-      lang: lang === 'English' || lang === 'en' ? 'en' : 'es',
+      lang: lang && lang.length === 2 ? lang : (lang === 'English' ? 'en' : 'es'),
       slow: false,
       host: 'https://translate.google.com',
     });

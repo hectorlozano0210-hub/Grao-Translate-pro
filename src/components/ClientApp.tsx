@@ -46,15 +46,33 @@ interface CallRecord {
   created_at: string;
 }
 
+const LANGUAGES = [
+  { name: 'Spanish', native: 'Español', code: 'es' },
+  { name: 'English', native: 'English', code: 'en' },
+  { name: 'French', native: 'Français', code: 'fr' },
+  { name: 'Portuguese', native: 'Português', code: 'pt' },
+  { name: 'Italian', native: 'Italiano', code: 'it' },
+  { name: 'German', native: 'Deutsch', code: 'de' },
+  { name: 'Chinese', native: '中文', code: 'zh' },
+  { name: 'Japanese', native: '日本語', code: 'ja' },
+  { name: 'Arabic', native: 'العربية', code: 'ar' },
+  { name: 'Russian', native: 'Русский', code: 'ru' },
+  { name: 'Korean', native: '한국어', code: 'ko' }
+];
+
+const getLangCode = (name: string) => LANGUAGES.find(l => l.name === name)?.code || 'en';
+const getLangNative = (name: string) => LANGUAGES.find(l => l.name === name)?.native || name;
+
 let globalAudioContext: AudioContext | null = null;
 
 const speakText = async (text: string, lang: string, voiceType: string, panValue: number = 0) => {
   if (panValue !== 0) {
     try {
+      const isoCode = getLangCode(lang);
       const res = await fetch('/api/tts', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ text, lang })
+         body: JSON.stringify({ text, lang: isoCode })
       });
       if(res.ok) {
          const blob = await res.blob();
@@ -88,10 +106,8 @@ const speakText = async (text: string, lang: string, voiceType: string, panValue
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   
-  if (lang === 'English') utterance.lang = 'en-US';
-  if (lang === 'Spanish') utterance.lang = 'es-ES';
-  if (lang === 'French') utterance.lang = 'fr-FR';
-  if (lang === 'German') utterance.lang = 'de-DE';
+  const isoCode = getLangCode(lang);
+  utterance.lang = isoCode === 'en' ? 'en-US' : (isoCode === 'es' ? 'es-ES' : (isoCode === 'fr' ? 'fr-FR' : (isoCode === 'de' ? 'de-DE' : (isoCode === 'it' ? 'it-IT' : (isoCode === 'pt' ? 'pt-PT' : isoCode)))));
   
   const voices = window.speechSynthesis.getVoices();
   const targetVoices = voices.filter(v => v.lang.startsWith(utterance.lang.substring(0,2)));
@@ -180,8 +196,9 @@ export default function ClientApp() {
 
       recognitionRef.current.onresult = async (event: any) => {
         const text = event.results[0][0].transcript;
-        const currentLang = recognitionRef.current.lang.includes('es') ? 'Spanish' : 'English';
-        if (text) handleTranslate(text, currentLang);
+        const currentISO = recognitionRef.current.lang.substring(0,2);
+        const currentLangName = LANGUAGES.find(l => l.code === currentISO)?.name || 'English';
+        if (text) handleTranslate(text, currentLangName);
       };
     }
     
@@ -199,7 +216,8 @@ export default function ClientApp() {
     }
     if (recordingLang) recognitionRef.current.stop();
     setRecordingLang(langToListen);
-    recognitionRef.current.lang = langToListen === 'English' ? 'en-US' : 'es-ES';
+    const iso = getLangCode(langToListen);
+    recognitionRef.current.lang = iso === 'en' ? 'en-US' : (iso === 'es' ? 'es-ES' : (iso === 'fr' ? 'fr-FR' : (iso === 'de' ? 'de-DE' : (iso === 'it' ? 'it-IT' : (iso === 'pt' ? 'pt-PT' : iso)))));
     recognitionRef.current.start();
   };
 
@@ -595,10 +613,26 @@ export default function ClientApp() {
                       <div className={cn("w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform duration-300", isBluetoothSplit ? "translate-x-5" : "translate-x-1")}></div>
                    </button>
                 </div>
-                <div className="flex items-center justify-around bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
-                   <span className="text-xs font-bold">{fromLang}</span>
-                   <button onClick={() => { setFromLang(toLang); setToLang(fromLang); }} className="p-2 bg-zinc-800 rounded-full text-indigo-400"><ArrowDownUp className="w-4" /></button>
-                   <span className="text-xs font-bold">{toLang}</span>
+                <div className="flex items-center justify-around bg-zinc-900 p-3 rounded-2xl border border-zinc-800">
+                   <select 
+                      value={fromLang} 
+                      onChange={(e) => setFromLang(e.target.value)}
+                      className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer appearance-none px-2"
+                   >
+                      {LANGUAGES.map(l => (
+                         <option key={l.code} value={l.name} className="bg-zinc-900">{l.native}</option>
+                      ))}
+                   </select>
+                   <button onClick={() => { setFromLang(toLang); setToLang(fromLang); }} className="p-2 bg-zinc-800 rounded-full text-indigo-400 hover:rotate-180 transition-transform"><ArrowDownUp className="w-4" /></button>
+                   <select 
+                      value={toLang} 
+                      onChange={(e) => setToLang(e.target.value)}
+                      className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer appearance-none px-2 text-right"
+                   >
+                      {LANGUAGES.map(l => (
+                         <option key={l.code} value={l.name} className="bg-zinc-900">{l.native}</option>
+                      ))}
+                   </select>
                 </div>
              </div>
 
@@ -676,6 +710,22 @@ export default function ClientApp() {
                  </div>
                </div>
              )}
+
+             {/* Professional Footer Credits */}
+             <footer className="mt-12 mb-8 text-center space-y-1 opacity-40">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Programación y Diseño</p>
+                <p className="text-xs font-bold text-indigo-400">Hector Lozano Design</p>
+                <div className="flex items-center justify-center gap-2 text-[8px] font-black text-zinc-600 uppercase">
+                   <span>Bogotá Colombia</span>
+                   <span className="w-1 h-1 bg-zinc-800 rounded-full"></span>
+                   <span>Derechos Reservados © 2026</span>
+                </div>
+                {appConfig.contact_whatsapp && (
+                   <div className="pt-2">
+                       <p className="text-[8px] font-black text-emerald-500">Contact: +{appConfig.contact_whatsapp}</p>
+                   </div>
+                )}
+             </footer>
           </div>
         )}
 
@@ -753,6 +803,13 @@ export default function ClientApp() {
                  <div className="bg-indigo-600/10 p-5 rounded-3xl text-center border border-indigo-500/20"><p className="text-[8px] font-black text-amber-500 uppercase mb-2">12 MESES</p><p className="text-2xl font-black text-white mb-4">$29.9</p><a href={`https://wa.me/${appConfig.contact_whatsapp}?text=Hola,%20solicito%20Plan%2012M%20ID:${deviceId}`} className="block w-full bg-indigo-600 rounded-2xl py-3 text-[10px] font-black uppercase text-white shadow-xl shadow-indigo-600/30">Activar</a></div>
               </div>
               <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"><h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">Tabla de Beneficios</h4><div className="space-y-4 text-[10px] font-bold"><BenefitRow label="Foto OCR" free={false} vip={true} /><BenefitRow label="Modo Auto" free={false} vip={true} /><BenefitRow label="Llamadas" free={true} vip={true} /></div></div>
+              
+              {/* Footer in Payment */}
+              <footer className="mt-8 mb-4 text-center space-y-1 opacity-40 pb-10">
+                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white">Programación y Diseño</p>
+                 <p className="text-xs font-bold text-indigo-400">Hector Lozano Design</p>
+                 <p className="text-[7px] font-black text-zinc-600 uppercase">Bogotá Colombia • Derechos Reservados © 2026</p>
+              </footer>
            </div>
         )}
 
@@ -859,14 +916,26 @@ export default function ClientApp() {
                      <h3 className="text-xl font-black text-white uppercase tracking-widest">Módulo de Ayuda</h3>
                      <button onClick={() => setShowHelpModal(false)} className="p-2 bg-zinc-800 rounded-full"><X className="w-5 h-5 text-zinc-400" /></button>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 hide-scrollbar">
                      <div className="bg-zinc-950 p-5 rounded-2xl border border-zinc-800">
                         <h4 className="text-amber-500 font-bold mb-2 text-sm uppercase flex items-center gap-2"><Mic className="w-4 h-4"/> 1. Modos de Interpretación</h4>
-                        <p className="text-xs text-zinc-500 leading-relaxed"><strong>Básico:</strong> Presiona para hablar en traducciones rápidas.<br/><strong>Cara a Cara:</strong> Coloca el teléfono entre tú y tu colega; cada uno tendrá su lado.<br/><strong>Conferencia:</strong> Para reuniones corporativas largas. Modo inmersivo de pantalla negra con subtítulos en vivo.</p>
+                        <p className="text-xs text-zinc-500 leading-relaxed">
+                           <strong>Básico:</strong> Pulsa el micrófono para traducciones de ida y vuelta.<br/>
+                           <strong>Cara a Cara:</strong> Pantalla dividida para hablar de frente con otra persona.<br/>
+                           <strong>Conferencia:</strong> Modo manos libres optimizado para reuniones largas con subtitulado gigante.
+                        </p>
                      </div>
                      <div className="bg-zinc-950 p-5 rounded-2xl border border-zinc-800">
-                        <h4 className="text-indigo-400 font-bold mb-2 text-sm uppercase flex items-center gap-2"><Bot className="w-4 h-4"/> 2. Expertos IA</h4>
-                        <p className="text-xs text-zinc-500 leading-relaxed">Contacta con nuestros especialistas virtuales entrenados en software y productividad para que te asistan instantáneamente. (Costo: 1min VIP por consulta).</p>
+                        <h4 className="text-emerald-400 font-bold mb-2 text-sm uppercase flex items-center gap-2">🎧 2. Audífonos Duales</h4>
+                        <p className="text-xs text-zinc-500 leading-relaxed">Activa el switch en el inicio. Conecta tus auriculares y comparte uno con tu interlocutor. El sistema enviará cada idioma a un oído diferente de forma privada.</p>
+                     </div>
+                     <div className="bg-zinc-950 p-5 rounded-2xl border border-zinc-800">
+                        <h4 className="text-indigo-400 font-bold mb-2 text-sm uppercase flex items-center gap-2"><Bot className="w-4 h-4"/> 3. Expertos IA</h4>
+                        <p className="text-xs text-zinc-500 leading-relaxed">Consulta con asesores especializados en Adobe, Programación o Negocios. Recibe respuestas profesionales al instante.</p>
+                     </div>
+                     <div className="bg-zinc-950 p-5 rounded-2xl border border-zinc-800">
+                        <h4 className="text-zinc-400 font-bold mb-2 text-sm uppercase flex items-center gap-2"><Camera className="w-4 h-4"/> 4. Traductor OCR</h4>
+                        <p className="text-xs text-zinc-500 leading-relaxed">Usa la cámara para escanear menús, documentos o letreros. La IA detectará y traducirá el texto automáticamente.</p>
                      </div>
                   </div>
                </motion.div>
