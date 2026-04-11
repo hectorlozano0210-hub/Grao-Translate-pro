@@ -314,17 +314,17 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
                 <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Ventas Totales (Bruto)</p>
-                <p className="text-3xl font-bold text-emerald-600">${(stats?.totalEarnings || 0).toFixed(2)}</p>
+                <p className="text-3xl font-bold text-emerald-600">${Number(stats?.totalEarnings || 0).toFixed(2)}</p>
                 <div className="mt-2 text-[9px] text-zinc-400 font-bold uppercase">Ingresos por recargas</div>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
                 <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Costo Google Estimado</p>
-                <p className="text-3xl font-bold text-red-500">${(stats?.googleCost || 0).toFixed(2)}</p>
+                <p className="text-3xl font-bold text-red-500">${Number(stats?.googleCost || 0).toFixed(2)}</p>
                 <div className="mt-2 text-[9px] text-red-400 font-bold uppercase">Uso de API consumido</div>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
                 <p className="text-[10px] font-black text-zinc-400 uppercase mb-1 tracking-widest">Rentabilidad (Neto)</p>
-                <p className="text-3xl font-bold text-indigo-600">${(stats?.profitMargin || 0).toFixed(2)}</p>
+                <p className="text-3xl font-bold text-indigo-600">${Number(stats?.profitMargin || 0).toFixed(2)}</p>
                 <div className="mt-2 text-[9px] text-indigo-400 font-bold uppercase">Ganancia Final</div>
               </div>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 transition-all hover:shadow-md">
@@ -550,7 +550,7 @@ export default function AdminDashboard() {
                            <span className="text-[10px] font-mono text-zinc-400">{p?.device_id}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-emerald-600 font-black">${(p?.amount || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-emerald-600 font-black">${Number(p?.amount || 0).toFixed(2)}</td>
                       <td className="px-6 py-4 text-zinc-600 font-mono text-sm">{p?.minutes_added || 0} min</td>
                       <td className="px-6 py-4">
                          <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded text-[9px] uppercase font-bold">{p?.payment_method || 'N/A'}</span>
