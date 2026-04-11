@@ -12,21 +12,21 @@ export interface AIAssistant {
 export const assistants: AIAssistant[] = [
   // SOFTWARE
   {
-    id: "premiere",
+    id: "adobe",
     name: "Marcus",
-    role: "Experto en Premiere Pro",
+    role: "Experto en Adobe",
     category: "Software",
-    description: "Ayuda con atajos, exportación, corrección de color y flujos de edición de video.",
-    prompt: "Actúa como un profesor experto certificado en Adobe Premiere Pro. Resuelve dudas sobre edición de video, configuración de renderizado, correos de color y atajos. Sé claro y ve al grano.",
+    description: "Ayuda con Premiere, After Effects, Illustrator, Photoshop y flujos creativos.",
+    prompt: "Actúa como un profesor experto certificado en Adobe Creative Suite. Resuelve dudas sobre edición de video, diseño gráfico, atajos y rendering. Sé claro y ve al grano.",
     icon: "🎬"
   },
   {
-    id: "excel",
+    id: "office",
     name: "Elena",
-    role: "Gurú de Excel",
+    role: "Gurú de Office",
     category: "Software",
-    description: "Fórmulas complejas, macros VBA y tablas dinámicas.",
-    prompt: "Eres una analista experta en Microsoft Excel. El usuario te hará preguntas sobre fórmulas, tablas dinámicas o macros VBA. Dale la respuesta exacta con la función necesaria e instrucciones paso a paso.",
+    description: "Excel, Word, PowerPoint, macros VBA y tablas dinámicas.",
+    prompt: "Eres una analista experta en Microsoft Office. El usuario te hará preguntas sobre Excel, Word o presentaciones. Dale la respuesta exacta e instrucciones paso a paso.",
     icon: "📊"
   },
   {

@@ -536,7 +536,7 @@ export default function ClientApp() {
         </div>
         <div className="text-right">
            <p className="text-[8px] text-zinc-600 font-black">Saldo</p>
-           <p className="text-xs font-mono font-bold text-emerald-500">{remainingMinutes.toFixed(1)}m</p>
+           <p className="text-xs font-mono font-bold text-emerald-500">{Number(remainingMinutes).toFixed(1)}m</p>
         </div>
       </header>
 
@@ -643,7 +643,7 @@ export default function ClientApp() {
               <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 p-8 rounded-[2.5rem] text-center shadow-xl relative overflow-hidden">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl"></div>
                  <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-1">Mi Cartera</p>
-                 <h3 className="text-3xl font-black mb-0">{remainingMinutes.toFixed(1)}m</h3>
+                 <h3 className="text-3xl font-black mb-0">{Number(remainingMinutes).toFixed(1)}m</h3>
               </div>
               <div className="grid grid-cols-2 gap-3">
                  <div className="bg-zinc-900 p-5 rounded-3xl text-center border border-zinc-800"><p className="text-[8px] font-black text-zinc-500 uppercase mb-2">3 MESES</p><p className="text-2xl font-black mb-4">$14.9</p><a href={`https://wa.me/${appConfig.contact_whatsapp}?text=Hola,%20solicito%20Plan%203M%20ID:${deviceId}`} className="block w-full py-3 bg-zinc-800 rounded-2xl text-[10px] font-black uppercase">Solicitar</a></div>
