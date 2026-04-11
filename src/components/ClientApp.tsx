@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Phone, Mic, MicOff, Globe, User, MessageCircle, AlertCircle, LogOut, RefreshCw, History, CreditCard, Send, HelpCircle, X, GraduationCap, Play, Camera, Check } from 'lucide-react';
+import { Phone, Mic, MicOff, Globe, User, MessageCircle, AlertCircle, LogOut, RefreshCw, History, CreditCard, Send, HelpCircle, X, GraduationCap, Play, Camera, Check, Home, Bot, BookOpen, Settings, ChevronLeft } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
 import { translateText, explainGrammar } from '../services/geminiService';
 import { cn } from '../lib/utils';
 import { getDeviceId } from "../utils/device";
+import { assistants, AIAssistant } from '../data/assistants';
 import Dexie, { type Table } from 'dexie';
 
 // local db for photos
@@ -107,6 +108,12 @@ export default function ClientApp() {
   const [ocrHistory, setOcrHistory] = useState<OCRRecord[]>([]);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [ocrResult, setOcrResult] = useState<{original: string, translated: string} | null>(null);
+
+  // Assistant States
+  const [activeAssistant, setActiveAssistant] = useState<AIAssistant | null>(null);
+  const [assistantMessages, setAssistantMessages] = useState<{role: 'user'|'model', text: string}[]>([]);
+  const [assistantInput, setAssistantInput] = useState('');
+  const [isAssistantTyping, setIsAssistantTyping] = useState(false);
 
   const [academyFlashcards, setAcademyFlashcards] = useState<any[]>([]);
 
@@ -414,6 +421,30 @@ export default function ClientApp() {
   const myLastMsg = [...messages].reverse().find(m => m.sender === 'me');
   const otherLastMsg = [...messages].reverse().find(m => m.sender === 'other');
 
+  const handleAssistantSend = async () => {
+    if (!assistantInput.trim() || !activeAssistant) return;
+    const msg = assistantInput;
+    setAssistantInput('');
+    setAssistantMessages(prev => [...prev, {role: 'user', text: msg}]);
+    setIsAssistantTyping(true);
+    try {
+       const res = await fetch('/api/client/assistant-chat', {
+         method: 'POST',
+         headers: {'Content-Type': 'application/json'},
+         body: JSON.stringify({ deviceId, authKey, message: msg, prompt: activeAssistant.prompt })
+       });
+       const data = await res.json();
+       if (data.success) {
+         setAssistantMessages(prev => [...prev, {role: 'model', text: data.text}]);
+       } else {
+         alert(data.error);
+       }
+    } catch(err) {
+       console.error(err);
+    }
+    setIsAssistantTyping(false);
+  };
+
   if (!isAuthenticated) return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-white text-center">
        <div className="w-24 h-24 mb-6 rounded-3xl overflow-hidden border border-zinc-800 mx-auto"><img src="/logo.jpg" className="w-full h-full object-cover" /></div>
@@ -509,15 +540,7 @@ export default function ClientApp() {
         </div>
       </header>
 
-      <div className="flex bg-zinc-900/50 p-1 mx-4 mt-4 rounded-xl border border-zinc-800 gap-1 overflow-x-auto hide-scrollbar">
-        <button onClick={() => setActiveView('home')} className={cn("flex-1 py-2 px-3 rounded-lg text-[9px] font-black uppercase", activeView === 'home' ? "bg-zinc-800 text-white" : "text-zinc-500")}>Inicio</button>
-        <button onClick={() => setActiveView('academy')} className={cn("flex-1 py-2 px-3 rounded-lg text-[9px] font-black uppercase", activeView === 'academy' ? "bg-indigo-600 text-white" : "text-zinc-500")}>Academy</button>
-        <button onClick={() => setActiveView('history')} className={cn("flex-1 py-2 px-3 rounded-lg text-[9px] font-black uppercase", activeView === 'history' ? "bg-zinc-800 text-white" : "text-zinc-500")}>History</button>
-        <button onClick={() => setActiveView('payment')} className={cn("flex-1 py-2 px-3 rounded-lg text-[9px] font-black uppercase", activeView === 'payment' ? "bg-zinc-800 text-white" : "text-zinc-500")}>Planes</button>
-        <button onClick={() => setActiveView('help')} className={cn("flex-1 py-2 px-3 rounded-lg text-[9px] font-black uppercase", activeView === 'help' ? "bg-zinc-800 text-white" : "text-zinc-500")}>Ayuda</button>
-      </div>
-
-      <main className="flex-1 overflow-y-auto p-4 max-w-sm mx-auto w-full">
+      <main className="flex-1 overflow-y-auto p-4 pb-24 max-w-sm mx-auto w-full">
         
         {activeView === 'academy' && React.createElement(renderAcademyFlashcards)}
 
@@ -638,11 +661,108 @@ export default function ClientApp() {
            </div>
         )}
 
+        {/* Assistants Module */}
+        {activeView === 'assistants' && !activeAssistant && (
+           <div className="space-y-6 pt-2 pb-20 animate-in fade-in">
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-black text-white mb-1">Centro de Expertos</h3>
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Elige con quién hablar</p>
+              </div>
+              
+              {Object.entries(
+                 assistants.reduce((acc, a) => {
+                    if (!acc[a.category]) acc[a.category] = [];
+                    acc[a.category].push(a);
+                    return acc;
+                 }, {} as Record<string, typeof assistants>)
+              ).map(([cat, assts]) => (
+                 <div key={cat} className="space-y-3">
+                    <h4 className="text-[10px] text-zinc-500 font-black uppercase tracking-widest pl-2 border-l-2 border-indigo-500">{cat}</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                       {assts.map(a => (
+                          <div key={a.id} onClick={() => { setActiveAssistant(a); setAssistantMessages([]); }} className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 hover:border-indigo-500/50 transition-colors cursor-pointer text-center relative overflow-hidden group">
+                             <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">{a.icon}</div>
+                             <h5 className="text-[11px] font-black text-white leading-tight mb-1">{a.name}</h5>
+                             <p className="text-[9px] text-indigo-400 font-bold uppercase">{a.role}</p>
+                          </div>
+                       ))}
+                    </div>
+                 </div>
+              ))}
+           </div>
+        )}
+
+        {/* Active Assistant Chat */}
+        {activeView === 'assistants' && activeAssistant && (
+           <div className="flex flex-col h-[70vh] relative z-20 bg-zinc-950 animate-in slide-in-from-right-4">
+              <div className="flex justify-between items-center bg-zinc-900 p-4 rounded-3xl mb-4 border border-zinc-800">
+                 <button onClick={() => setActiveAssistant(null)} className="p-2 bg-zinc-800 rounded-full"><ChevronLeft className="w-5 h-5 text-white" /></button>
+                 <div className="text-center">
+                    <h3 className="text-sm font-black text-white">{activeAssistant.name} {activeAssistant.icon}</h3>
+                    <p className="text-[10px] text-zinc-400">{activeAssistant.role}</p>
+                 </div>
+                 <div className="w-9 h-9"></div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto min-h-0 space-y-4 px-2 pb-4 hide-scrollbar flex flex-col">
+                 <div className="text-center py-6">
+                    <div className="text-5xl mb-2">{activeAssistant.icon}</div>
+                    <p className="text-[10px] text-zinc-500 italic max-w-[200px] mx-auto">{activeAssistant.description}</p>
+                 </div>
+                 
+                 {assistantMessages.map((m, i) => (
+                    <div key={i} className={cn("max-w-[85%] rounded-2xl p-4 text-xs font-medium leading-relaxed shadow-sm", m.role === 'model' ? "bg-zinc-800 text-white self-start" : "bg-indigo-600 text-white self-end")}>
+                       {m.text}
+                    </div>
+                 ))}
+                 
+                 {isAssistantTyping && (
+                    <div className="bg-zinc-800 text-zinc-400 p-4 rounded-2xl self-start w-16 flex justify-center items-center gap-1">
+                       <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"></div>
+                       <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{animationDelay:'0.1s'}}></div>
+                       <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{animationDelay:'0.2s'}}></div>
+                    </div>
+                 )}
+                 <div ref={chatEndRef} />
+              </div>
+              
+              <div className="bg-zinc-900 p-2 rounded-[2rem] border border-zinc-800 flex gap-2">
+                 <input 
+                    type="text" 
+                    value={assistantInput}
+                    onChange={e => setAssistantInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAssistantSend()}
+                    placeholder="Escribe un mensaje..."
+                    className="flex-1 bg-transparent px-4 text-xs focus:outline-none"
+                 />
+                 <button onClick={handleAssistantSend} className="p-3 bg-indigo-600 rounded-full text-white"><Send className="w-4 h-4" /></button>
+              </div>
+           </div>
+        )}
+
       </main>
 
-      <footer className="p-4 text-center border-t border-zinc-900 bg-zinc-950 mt-auto shadow-inner">
-        <p className="text-[8px] text-zinc-800 font-black uppercase tracking-[0.3em]">Grao Evolution • masterfix</p>
-      </footer>
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 max-w-sm mx-auto bg-zinc-950 border-t border-zinc-900 pb-safe z-50">
+         <div className="flex justify-around p-2">
+            <button onClick={() => setActiveView('home')} className={cn("flex flex-col items-center gap-1 p-2 rounded-xl w-16 transition-colors", activeView === 'home' || activeView === 'camera' ? "text-indigo-500" : "text-zinc-500")}>
+               <Home className="w-6 h-6" />
+               <span className="text-[8px] font-black uppercase">Inicio</span>
+            </button>
+            <button onClick={() => setActiveView('assistants')} className={cn("flex flex-col items-center gap-1 p-2 rounded-xl w-16 transition-colors", activeView === 'assistants' ? "text-indigo-500" : "text-zinc-500")}>
+               <Bot className="w-6 h-6" />
+               <span className="text-[8px] font-black uppercase">Expertos</span>
+            </button>
+            <button onClick={() => setActiveView('academy')} className={cn("flex flex-col items-center gap-1 p-2 rounded-xl w-16 transition-colors", activeView === 'academy' ? "text-indigo-500" : "text-zinc-500")}>
+               <BookOpen className="w-6 h-6" />
+               <span className="text-[8px] font-black uppercase">Academia</span>
+            </button>
+            <button onClick={() => setActiveView('payment')} className={cn("flex flex-col items-center gap-1 p-2 rounded-xl w-16 transition-colors", activeView === 'payment' ? "text-indigo-500" : "text-zinc-500")}>
+               <Settings className="w-6 h-6" />
+               <span className="text-[8px] font-black uppercase">Ajustes</span>
+            </button>
+         </div>
+      </div>
     </div>
   );
 }

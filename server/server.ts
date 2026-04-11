@@ -847,6 +847,38 @@ app.post('/api/client/vip-auto-detect', async (req, res) => {
   }
 });
 
+app.post('/api/client/assistant-chat', async (req, res) => {
+  const { deviceId, authKey, message, prompt } = req.body;
+  if (!deviceId || !authKey || !message || !prompt) return res.status(400).json({error: "Missing params"});
+  
+  try {
+    const [devices] = await pool.query("SELECT * FROM devices WHERE device_id=? AND auth_key=? AND status='active'", [deviceId, authKey]) as any;
+    if (devices.length === 0) return res.status(401).json({error: "Unauthorized"});
+    const device = devices[0];
+    if (device.remaining_minutes <= 0.1) return res.status(403).json({error: "Sin Minutos"});
+    if (!device.is_vip) return res.status(403).json({error: "Not VIP"});
+
+    // Consume 1 minute per text generation
+    await pool.query("UPDATE devices SET remaining_minutes = GREATEST(0, remaining_minutes - 1) WHERE device_id=?", [deviceId]);
+
+    const { GoogleGenAI } = await import("@google/genai");
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview",
+      contents: [
+        { text: `SYSTEM INSTRUCTION: ${prompt}\n\nRespond to the prompt appropriately acting as the specified persona. Keep answers relatively concise for a chat interface.` },
+        { text: `User message: ${message}` }
+      ]
+    });
+
+    res.json({ success: true, text: response.text });
+  } catch(e) {
+    console.error("Assistant Chat Failed:", e);
+    res.status(500).json({error: "Chat processing failed"});
+  }
+});
+
 app.get("/test", (req,res)=>{
 res.json({server:"running"});
 });
