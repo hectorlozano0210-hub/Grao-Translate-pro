@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Phone, Mic, MicOff, Globe, User, MessageCircle, AlertCircle, LogOut, RefreshCw, History, CreditCard, Send, HelpCircle, X, GraduationCap, Play, Camera, Check, Home, Bot, BookOpen, Settings, ChevronLeft } from 'lucide-react';
+import { Phone, Mic, MicOff, Globe, User, MessageCircle, AlertCircle, LogOut, RefreshCw, History, CreditCard, Send, HelpCircle, X, GraduationCap, Play, Camera, Check, Home, Bot, BookOpen, Settings, ChevronLeft, Monitor, Users, ArrowDownUp, Info } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
 import { translateText, explainGrammar } from '../services/geminiService';
@@ -114,6 +114,10 @@ export default function ClientApp() {
   const [assistantMessages, setAssistantMessages] = useState<{role: 'user'|'model', text: string}[]>([]);
   const [assistantInput, setAssistantInput] = useState('');
   const [isAssistantTyping, setIsAssistantTyping] = useState(false);
+
+  // New Modes
+  const [translationMode, setTranslationMode] = useState<'ptt'|'face'|'conference'>('conference');
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   const [academyFlashcards, setAcademyFlashcards] = useState<any[]>([]);
 
@@ -548,31 +552,84 @@ export default function ClientApp() {
           <div className="flex flex-col gap-4 py-4 w-full h-[70vh] relative">
              <div className="flex items-center justify-around bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
                 <span className="text-xs font-bold">{fromLang}</span>
-                <button onClick={() => { setFromLang(toLang); setToLang(fromLang); }} className="p-2 bg-zinc-800 rounded-full text-indigo-400"><RefreshCw className="w-4" /></button>
+                <button onClick={() => { setFromLang(toLang); setToLang(fromLang); }} className="p-2 bg-zinc-800 rounded-full text-indigo-400"><ArrowDownUp className="w-4" /></button>
                 <span className="text-xs font-bold">{toLang}</span>
              </div>
-             
-             <div className="flex-1 flex flex-col items-center justify-center">
-               <div className="relative">
-                 {isVipDetecting && <div className="absolute inset-0 bg-amber-500 rounded-full animate-ping opacity-20"></div>}
-                 <button 
-                    onClick={() => { 
-                       if (!isVip) return alert("Plan VIP Requerido"); 
-                       if (!isVipDetecting) setMessages([]);
-                       setIsVipDetecting(!isVipDetecting); 
-                    }} 
-                    className={cn("relative z-10 w-48 h-48 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300", isVipDetecting ? "bg-amber-500 shadow-amber-500/50 scale-105" : "bg-indigo-600 shadow-indigo-600/30 hover:scale-105")}
-                 >
-                    {isVipDetecting ? <div className="flex gap-2"><div className="w-3 h-3 bg-white rounded-full animate-bounce"></div><div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div><div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div></div> : <Mic className="w-20 h-20 text-white" />}
-                 </button>
-               </div>
-               <p className="mt-8 text-zinc-500 text-[10px] font-black uppercase tracking-widest">{isVipDetecting ? 'Procesando Voz...' : 'Toque para Empezar'}</p>
-             </div>
 
-             <div className="grid grid-cols-2 gap-3 mt-auto">
-                <button onClick={() => setActiveView('camera')} className="py-4 bg-zinc-900/50 border border-zinc-800 rounded-[2rem] uppercase font-black text-[10px] flex flex-col items-center justify-center gap-1 text-zinc-400 hover:bg-zinc-800 transition-colors"><Camera className="w-5 h-5 mb-1" /> OCR Foto</button>
-                <button onClick={toggleCall} className="py-4 bg-zinc-900/50 border border-zinc-800 rounded-[2rem] uppercase font-black text-[10px] flex flex-col items-center justify-center gap-1 text-zinc-400 hover:bg-zinc-800 transition-colors"><Phone className="w-5 h-5 mb-1" /> Llamada</button>
+             <div className="flex bg-zinc-900 p-1 rounded-2xl border border-zinc-800 gap-1">
+                <button onClick={() => setTranslationMode('ptt')} className={cn("flex-1 py-2 text-[9px] font-black uppercase rounded-xl transition-colors", translationMode === 'ptt' ? "bg-zinc-800 text-white" : "text-zinc-500")}><Mic className="w-3 h-3 mx-auto mb-1 inline-block" /> Básico</button>
+                <button onClick={() => setTranslationMode('face')} className={cn("flex-1 py-2 text-[9px] font-black uppercase rounded-xl transition-colors", translationMode === 'face' ? "bg-zinc-800 text-white" : "text-zinc-500")}><Users className="w-3 h-3 mx-auto mb-1 inline-block" /> Cara a Cara</button>
+                <button onClick={() => setTranslationMode('conference')} className={cn("flex-1 py-2 text-[9px] font-black uppercase rounded-xl transition-colors", translationMode === 'conference' ? "bg-indigo-600 text-white" : "text-zinc-500")}><Monitor className="w-3 h-3 mx-auto mb-1 inline-block" /> Conferencia</button>
              </div>
+             
+             {translationMode === 'ptt' && (
+               <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in">
+                 <button 
+                    onPointerDown={() => startRecording(fromLang)}
+                    className={cn("w-32 h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300", recordingLang ? "bg-indigo-500 scale-95" : "bg-zinc-800 hover:bg-zinc-700")}
+                 >
+                    <Mic className={cn("w-12 h-12 transition-colors", recordingLang ? "text-white" : "text-indigo-400")} />
+                 </button>
+                 <p className="mt-8 text-zinc-500 text-[10px] font-black uppercase tracking-widest">{recordingLang ? 'Escuchando...' : 'Mantén pulsado para hablar'}</p>
+                 <div className="grid grid-cols-2 gap-3 mt-auto w-full">
+                    <button onClick={() => setActiveView('camera')} className="py-4 bg-zinc-900/50 border border-zinc-800 rounded-[2rem] uppercase font-black text-[10px] flex flex-col items-center justify-center gap-1 text-zinc-400 hover:bg-zinc-800 transition-colors"><Camera className="w-5 h-5 mb-1" /> OCR Foto</button>
+                    <button onClick={toggleCall} className="py-4 bg-zinc-900/50 border border-zinc-800 rounded-[2rem] uppercase font-black text-[10px] flex flex-col items-center justify-center gap-1 text-zinc-400 hover:bg-zinc-800 transition-colors"><Phone className="w-5 h-5 mb-1" /> Llamada</button>
+                 </div>
+               </div>
+             )}
+
+             {translationMode === 'face' && (
+               <div className="flex-1 flex flex-col gap-2 relative animate-in fade-in h-full">
+                  <div className="flex-1 bg-zinc-900 rounded-3xl border border-zinc-800 p-6 flex flex-col items-center justify-center transform rotate-180 relative overflow-hidden">
+                     <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest absolute top-6">{toLang}</p>
+                     <p className="text-white text-lg font-medium text-center">{messages.length > 0 ? messages[messages.length-1].translation : 'Esperando traducción...'}</p>
+                     <button onPointerDown={() => startRecording(toLang)} className="absolute bottom-6 w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center"><Mic className={cn("w-6 h-6", recordingLang === toLang ? "text-amber-500" : "text-zinc-400")} /></button>
+                  </div>
+                  <div className="flex-1 bg-indigo-900/20 rounded-3xl border border-indigo-500/20 p-6 flex flex-col items-center justify-center relative overflow-hidden">
+                     <p className="text-indigo-400/50 text-[10px] font-black uppercase tracking-widest absolute top-6">{fromLang}</p>
+                     <p className="text-white text-lg font-medium text-center">{messages.length > 0 ? messages[messages.length-1].text : 'Toca el micrófono para hablar'}</p>
+                     <button onPointerDown={() => startRecording(fromLang)} className="absolute bottom-6 w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center shadow-xl shadow-indigo-600/20"><Mic className={cn("w-6 h-6", recordingLang === fromLang ? "text-white" : "text-indigo-200")} /></button>
+                  </div>
+               </div>
+             )}
+
+             {translationMode === 'conference' && (
+               <div className="flex-1 flex flex-col items-center justify-center bg-black rounded-[2.5rem] border border-zinc-800 overflow-hidden relative animate-in zoom-in-95 duration-500">
+                 {isVipDetecting && (
+                    <div className="absolute top-12 left-0 right-0 flex justify-center items-end gap-1 px-8 h-16 opacity-50">
+                       {[...Array(20)].map((_, i) => (
+                           <div key={i} className="w-2 bg-indigo-500 rounded-t-full origin-bottom" style={{ height: `${Math.max(10, Math.random() * 100)}%`, animation: `pulseBar ${0.3 + Math.random()}s infinite alternate` }}></div>
+                       ))}
+                    </div>
+                 )}
+                 
+                 <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center z-10">
+                    {!isVipDetecting ? (
+                       <>
+                          <button 
+                             onClick={() => { 
+                                if (!isVip) return alert("Plan VIP Requerido"); 
+                                setMessages([]); setIsVipDetecting(true); 
+                             }} 
+                             className="w-24 h-24 bg-indigo-600 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(79,70,229,0.4)] mb-8 hover:scale-105 transition-transform"
+                          >
+                             <Mic className="w-10 h-10 text-white" />
+                          </button>
+                          <h2 className="text-white font-black text-xl uppercase tracking-widest">Iniciar Conferencia</h2>
+                          <p className="text-zinc-500 text-[10px] mt-2 max-w-[200px]">Subtitulación en tiempo real y análisis de voz inmersivo.</p>
+                       </>
+                    ) : (
+                       <div className="flex flex-col w-full h-full justify-end pb-8">
+                          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-black/60 backdrop-blur-md p-6 rounded-3xl border border-zinc-800/50">
+                             <p className="text-zinc-400 text-xs italic mb-2">"{messages.length > 0 ? messages[messages.length-1].text : 'Escuchando interlocutor...'}"</p>
+                             <h3 className="text-3xl font-black text-white leading-tight">{messages.length > 0 ? messages[messages.length-1].translation : '...'}</h3>
+                          </motion.div>
+                          <button onClick={() => setIsVipDetecting(false)} className="mt-8 mx-auto w-12 h-12 bg-red-500/20 rounded-full border border-red-500/50 flex items-center justify-center backdrop-blur-sm"><X className="text-red-500 w-5 h-5" /></button>
+                       </div>
+                    )}
+                 </div>
+               </div>
+             )}
           </div>
         )}
 
@@ -741,6 +798,35 @@ export default function ClientApp() {
         )}
 
       </main>
+
+      {/* Floating Help Button */}
+      <button onClick={() => setShowHelpModal(true)} className="fixed bottom-24 right-4 z-40 w-10 h-10 bg-zinc-800 text-zinc-400 rounded-full flex items-center justify-center shadow-lg border border-zinc-700 hover:text-white hover:bg-zinc-700 transition-colors tooltip-trigger">
+         <Info className="w-5 h-5" />
+      </button>
+
+      {/* Help Modal Overlay */}
+      <AnimatePresence>
+         {showHelpModal && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
+                  <div className="flex justify-between items-center mb-6">
+                     <h3 className="text-xl font-black text-white uppercase tracking-widest">Módulo de Ayuda</h3>
+                     <button onClick={() => setShowHelpModal(false)} className="p-2 bg-zinc-800 rounded-full"><X className="w-5 h-5 text-zinc-400" /></button>
+                  </div>
+                  <div className="space-y-4">
+                     <div className="bg-zinc-950 p-5 rounded-2xl border border-zinc-800">
+                        <h4 className="text-amber-500 font-bold mb-2 text-sm uppercase flex items-center gap-2"><Mic className="w-4 h-4"/> 1. Modos de Interpretación</h4>
+                        <p className="text-xs text-zinc-500 leading-relaxed"><strong>Básico:</strong> Presiona para hablar en traducciones rápidas.<br/><strong>Cara a Cara:</strong> Coloca el teléfono entre tú y tu colega; cada uno tendrá su lado.<br/><strong>Conferencia:</strong> Para reuniones corporativas largas. Modo inmersivo de pantalla negra con subtítulos en vivo.</p>
+                     </div>
+                     <div className="bg-zinc-950 p-5 rounded-2xl border border-zinc-800">
+                        <h4 className="text-indigo-400 font-bold mb-2 text-sm uppercase flex items-center gap-2"><Bot className="w-4 h-4"/> 2. Expertos IA</h4>
+                        <p className="text-xs text-zinc-500 leading-relaxed">Contacta con nuestros especialistas virtuales entrenados en software y productividad para que te asistan instantáneamente. (Costo: 1min VIP por consulta).</p>
+                     </div>
+                  </div>
+               </motion.div>
+            </motion.div>
+         )}
+      </AnimatePresence>
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 max-w-sm mx-auto bg-zinc-950 border-t border-zinc-900 pb-safe z-50">
