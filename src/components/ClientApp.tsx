@@ -46,7 +46,44 @@ interface CallRecord {
   created_at: string;
 }
 
-const speakText = (text: string, lang: string, voiceType: string) => {
+let globalAudioContext: AudioContext | null = null;
+
+const speakText = async (text: string, lang: string, voiceType: string, panValue: number = 0) => {
+  if (panValue !== 0) {
+    try {
+      const res = await fetch('/api/tts', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ text, lang })
+      });
+      if(res.ok) {
+         const blob = await res.blob();
+         if (!globalAudioContext) {
+            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+            globalAudioContext = new AudioContextClass();
+         }
+         if (globalAudioContext.state === 'suspended') {
+            await globalAudioContext.resume();
+         }
+         
+         const arrayBuffer = await blob.arrayBuffer();
+         const decodedData = await globalAudioContext.decodeAudioData(arrayBuffer);
+         const source = globalAudioContext.createBufferSource();
+         source.buffer = decodedData;
+         
+         const panner = globalAudioContext.createStereoPanner();
+         panner.pan.value = panValue;
+         
+         source.connect(panner);
+         panner.connect(globalAudioContext.destination);
+         source.start(0);
+         return; 
+      }
+    } catch(e) {
+      console.error("Split Audio Exception", e);
+    }
+  }
+
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
@@ -118,6 +155,7 @@ export default function ClientApp() {
   // New Modes
   const [translationMode, setTranslationMode] = useState<'ptt'|'face'|'conference'>('conference');
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [isBluetoothSplit, setIsBluetoothSplit] = useState(false);
 
   const [academyFlashcards, setAcademyFlashcards] = useState<any[]>([]);
 
@@ -322,7 +360,7 @@ export default function ClientApp() {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, newMessage]);
-      speakText(translated, targetLang, voiceType);
+      speakText(translated, targetLang, voiceType, isBluetoothSplit ? 1 : 0);
     } catch (err) { console.error(err); }
   };
 
@@ -371,7 +409,7 @@ export default function ClientApp() {
                    const translated = out.data.translation;
                    const sender = out.data.detected_lang === fromLang ? 'me' : 'other';
                    setMessages(prev => [...prev, { id: Math.random().toString(), text: out.data.transcription, translation: translated, sender, timestamp: new Date() }]);
-                   speakText(translated, sender === 'me' ? toLang : fromLang, voiceType);
+                   speakText(translated, sender === 'me' ? toLang : fromLang, voiceType, isBluetoothSplit ? (sender === 'me' ? 1 : -1) : 0);
                    if (out.remaining_minutes !== undefined) setRemainingMinutes(out.remaining_minutes);
                 }
              } catch(e) {}
@@ -550,10 +588,18 @@ export default function ClientApp() {
 
         {activeView === 'home' && (
           <div className="flex flex-col gap-4 py-4 w-full h-[70vh] relative">
-             <div className="flex items-center justify-around bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
-                <span className="text-xs font-bold">{fromLang}</span>
-                <button onClick={() => { setFromLang(toLang); setToLang(fromLang); }} className="p-2 bg-zinc-800 rounded-full text-indigo-400"><ArrowDownUp className="w-4" /></button>
-                <span className="text-xs font-bold">{toLang}</span>
+             <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between bg-zinc-900 px-4 py-2 rounded-2xl border border-zinc-800">
+                   <p className="text-[10px] uppercase font-black tracking-widest text-zinc-400 flex items-center gap-2">🎧 Audífonos Dual</p>
+                   <button onClick={() => setIsBluetoothSplit(!isBluetoothSplit)} className={cn("w-10 h-5 rounded-full relative transition-colors duration-300", isBluetoothSplit ? "bg-emerald-500" : "bg-zinc-700")}>
+                      <div className={cn("w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform duration-300", isBluetoothSplit ? "translate-x-5" : "translate-x-1")}></div>
+                   </button>
+                </div>
+                <div className="flex items-center justify-around bg-zinc-900 p-4 rounded-3xl border border-zinc-800">
+                   <span className="text-xs font-bold">{fromLang}</span>
+                   <button onClick={() => { setFromLang(toLang); setToLang(fromLang); }} className="p-2 bg-zinc-800 rounded-full text-indigo-400"><ArrowDownUp className="w-4" /></button>
+                   <span className="text-xs font-bold">{toLang}</span>
+                </div>
              </div>
 
              <div className="flex bg-zinc-900 p-1 rounded-2xl border border-zinc-800 gap-1">
@@ -673,7 +719,7 @@ export default function ClientApp() {
                           <p className="text-xs text-zinc-400 italic mb-4 leading-relaxed">"{ocrResult.original}"</p>
                           <div className="h-px bg-zinc-800 mb-4" />
                           <p className="text-sm text-white font-bold">{ocrResult.translated}</p>
-                          <button onClick={() => speakText(ocrResult.translated, 'English', voiceType)} className="mt-4 text-indigo-400 font-bold text-xs uppercase flex items-center gap-2"><Play className="w-3 h-3" /> Escuchar</button>
+                          <button onClick={() => speakText(ocrResult.translated, 'English', voiceType, isBluetoothSplit ? 1 : 0)} className="mt-4 text-indigo-400 font-bold text-xs uppercase flex items-center gap-2"><Play className="w-3 h-3" /> Escuchar</button>
                        </div>
                     )}
                     <button onClick={() => { setCapturedImage(null); setOcrResult(null); }} className="w-full py-3 text-zinc-600 text-[10px] font-black uppercase">Nueva Foto</button>

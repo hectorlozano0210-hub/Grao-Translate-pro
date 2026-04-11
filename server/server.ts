@@ -879,6 +879,27 @@ app.post('/api/client/assistant-chat', async (req, res) => {
   }
 });
 
+app.post('/api/tts', async (req, res) => {
+  const { text, lang } = req.body;
+  if (!text) return res.status(400).json({ error: "Missing text" });
+  try {
+    const googleTTS = await import('google-tts-api');
+    const url = googleTTS.getAudioUrl(text, {
+      lang: lang === 'English' || lang === 'en' ? 'en' : 'es',
+      slow: false,
+      host: 'https://translate.google.com',
+    });
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(buffer);
+  } catch(e) {
+    console.error("TTS Failed:", e);
+    res.status(500).json({ error: "TTS generation failed" });
+  }
+});
+
 app.get("/test", (req,res)=>{
 res.json({server:"running"});
 });
